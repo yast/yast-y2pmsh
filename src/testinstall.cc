@@ -94,6 +94,8 @@ int testmediaorder(vector<string>& argv);
 
 int cdattach(vector<string>& argv);
 
+int products(vector<string>& argv);
+
 Y2PMSH y2pmsh;
 
 inline int init(vector<string>& argv)
@@ -353,6 +355,7 @@ void init_commands()
     newcmd("testmediaorder", testmediaorder, 3, "test media order");
     newcmd("init",	init, 1, "initialize packagemanager (happens automatically if needed)");
     newcmd("help",	help, 0, "this screen");
+    newcmd("showproducts", products, 1, "show installed products");
 #undef newcmd
 
 }
@@ -905,6 +908,26 @@ int cdattach(vector<string>& argv)
     {
 	DBG << "release medium final" << endl;
 	media->release();
+    }
+
+    return 0;
+}
+
+int products( vector<string>& )
+{
+    const std::list<constInstSrcDescrPtr> &products = Y2PM::instTarget().getProducts();
+
+    int i = 0;    
+    std::list<constInstSrcDescrPtr>::const_iterator it;
+    for( it = products.begin(); it != products.end(); ++it ) {
+        cout << i++ << ": " << (*it)->content_product();
+        std::string youurl = (*it)->content_youurl();
+        if ( !youurl.empty() ) cout << ", YouUrl: " << youurl;
+        std::string youpath = (*it)->content_youpath();
+        if ( !youpath.empty() ) cout << ", YouPath: " << youpath;
+        std::string youtype = (*it)->content_youtype();
+        if ( !youtype.empty() ) cout << ", YouType: \"" << youtype << "\"";
+        cout << endl;        
     }
 
     return 0;
