@@ -348,11 +348,20 @@ mountfilesystems()
 
 setmemorylimit()
 {
+    set -x
     local mem
-    mem="`stat -c '%b*%B/1024*2/3' /proc/kcore`"
-    eval "mem=\$(($mem))"
-    ulimit -v $mem
-    echo "Memory limit set to ${mem}KB"
+    while read mem; do
+	case "$mem" in
+	    MemTotal:*)
+		set -- $mem
+		eval "mem=\$(($2/3*2))"
+		ulimit -v $mem
+		echo "Memory limit set to ${mem}KB"
+		break;
+	    ;;
+	esac
+    done < <(cat /proc/meminfo) # cat for proc stuff
+    set +x
 }
 
 helpandquit()
