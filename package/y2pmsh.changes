@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Tue Dec 14 13:07:50 CET 2004 - lnussel@suse.de
+
+- use /proc/meminfo for calculating the memory limit
+- make tab completion for packages somewhat context sensitive
+- 2.11.5
+
+-------------------------------------------------------------------
 Mon Dec 13 10:15:51 CET 2004 - lnussel@suse.de
 
 - install ccache wrapper only for installed compilers
