@@ -1399,21 +1399,63 @@ int cdattach(vector<string>& argv)
     return 0;
 }
 
-int products( vector<string>& )
+int products( vector<string>& argv )
 {
+    int remove = -1;
+    vector<string>::iterator arg = argv.begin()+1;
+    for(;arg != argv.end() && (*arg)[0] == '-'; ++arg)
+    {
+	if(*arg == "--")
+	{
+	    ++arg;
+	    break;
+	}
+	else if(*arg == "-h" || *arg == "--help")
+	{
+	    HelpScreen h(argv[0]);
+	    h.Parameter(HelpScreenParameter("-R ID", "--remove ID", "remove product number ID"));
+	    cout << h;
+	    return 0;
+	}
+	else if(*arg == "-R" || *arg == "--remove")
+	{
+	    if (++arg == argv.end())
+	    {
+		cout << "must specify number" << endl;
+		return 1;
+	    }
+	    remove = atoi((*arg).c_str());
+	}
+    }
+
     const std::list<constInstSrcDescrPtr> &products = Y2PM::instTarget().getProducts();
 
     int i = 0;    
     std::list<constInstSrcDescrPtr>::const_iterator it;
-    for( it = products.begin(); it != products.end(); ++it ) {
-        cout << i++ << ": " << (*it)->content_product();
-        std::string youurl = (*it)->content_youurl();
-        if ( !youurl.empty() ) cout << ", YouUrl: " << youurl;
-        std::string youpath = (*it)->content_youpath();
-        if ( !youpath.empty() ) cout << ", YouPath: " << youpath;
-        std::string youtype = (*it)->content_youtype();
-        if ( !youtype.empty() ) cout << ", YouType: \"" << youtype << "\"";
-        cout << endl;        
+    for( it = products.begin(); it != products.end(); ++it, ++i )
+    {
+	if(remove != -1)
+	{
+	    if(i != remove) continue;
+	    PMError err = Y2PM::instTarget().removeProduct(*it);
+	    if(err)
+	    {
+		cout << err << endl;
+		return 1;
+	    }
+	    return 0;
+	}
+	else
+	{
+	    cout << i << ": " << (*it)->content_product();
+	    std::string youurl = (*it)->content_youurl();
+	    if ( !youurl.empty() ) cout << ", YouUrl: " << youurl;
+	    std::string youpath = (*it)->content_youpath();
+	    if ( !youpath.empty() ) cout << ", YouPath: " << youpath;
+	    std::string youtype = (*it)->content_youtype();
+	    if ( !youtype.empty() ) cout << ", YouType: \"" << youtype << "\"";
+	    cout << endl;
+	}
     }
 
     return 0;

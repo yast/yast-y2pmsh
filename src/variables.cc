@@ -357,7 +357,7 @@ void init_variables()
     variables["quitonfail"] = Variable("0",false);
     vardesc["quitonfail"] = "quit if a command failed";
 
-    variables["instlog"] = Variable("/var/log/YaST2/y2logRPM",false,instlogvalidate);
+    variables["instlog"] = Variable("",false,instlogvalidate);
     vardesc["instlog"] = "set installation log file";
 
     variables["createbackups"] = Variable("0",false,createbackups);
@@ -369,6 +369,10 @@ void init_variables()
 
     variables["cachetodisk"] =  Variable("1",false,cachetoramdisk);
     vardesc["cachetodisk"] = "do not read instsources. do not save instsources to disk";
+
+    const char* msg = Variable::assign(variables["instlog"], "/var/log/YaST2/y2logRPM");
+    if(msg)
+	cout << "Err: " << msg << endl;;
 }
 
 // vim:sw=4

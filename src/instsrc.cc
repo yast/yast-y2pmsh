@@ -3,6 +3,7 @@
 #include <Y2PM.h>
 #include <y2pm/InstSrcDescr.h>
 #include <y2pm/InstSrcManager.h>
+#include <y2pm/InstTarget.h>
 
 #include "y2pmsh.h"
 #include "instsrc.h"
@@ -127,7 +128,7 @@ static int source_update(const vector<string>& argv, unsigned parampos)
 int source(vector<string>& argv)
 {
     InstSrcManager::ISrcIdList isrclist;
-    enum { src_show, src_enable, src_disable, src_add, src_remove, src_update } mode = src_show;
+    enum { src_show, src_enable, src_disable, src_add, src_remove, src_update, src_product } mode = src_show;
     int ret = 0;
 
     if(argv.size()<2 || argv[1] == "--help")
@@ -138,6 +139,7 @@ int source(vector<string>& argv)
 	h.Parameter(HelpScreenParameter("-a URL", "--add URL", "add a new source at URL"));
 	h.Parameter(HelpScreenParameter("-u ID", "--update ID", "updated cached data for ID"));
 	h.Parameter(HelpScreenParameter("-R ID", "--remove ID", "remove source number ID"));
+	h.Parameter(HelpScreenParameter("-P ID", "--product ID", "install source number ID as product"));
 	h.Parameter(HelpScreenParameter("-s", "--show", "show known sources"));
 	cout << h;
 	return 0;
@@ -190,6 +192,15 @@ int source(vector<string>& argv)
 	    return 1;
 	}
 	mode = src_update;
+    }
+    else if(param == "--product" || param == "-P")
+    {
+	if (parampos >= argv.size())
+	{
+	    cout << "must specify number" << endl;
+	    return 1;
+	}
+	mode = src_product;
     }
     else if(param == "--show" || param == "-s")
     {
@@ -346,24 +357,51 @@ int source(vector<string>& argv)
 		it != isrclist.end(); ++it, count++)
 	    {
 		constInstSrcDescrPtr descr = (*it)->descr();
-		cout << count << ": ";
-		cout << descr->content_label() << " (" << descr->url() << ")";
+		bool on = false;
 		if(y2pmsh.initialized())
-		{
-		    cout << ((*it)->enabled()?" enabled":" disabled");
-		}
+		    on = (*it)->enabled();
 		else
-		{
-		    cout << (descr->default_activate()?" on":" off");
-		}
-		cout << endl;
+		    on = descr->default_activate();
+		cout << stringutil::form("%d: [%c] %s (%s)\n",
+		    count,
+		    on?'x':' ',
+		    descr->content_label().c_str(),
+		    descr->url().asString().c_str());
 	    }
 	} break;
 	case src_update:
 	{
 	    ret = source_update(argv, parampos);
 	} break;
+	case src_product:
+	{
+	    Y2PM::instSrcManager().getSources(isrclist);
 
+	    while(parampos < argv.size())
+	    {
+		int num = atoi(argv[parampos++].c_str());
+		if(num < 0 || static_cast<unsigned>(num) >= isrclist.size())
+		{
+		    cout << "invalid number" << endl;
+		    return 1;
+		}
+
+		int count = 0;
+		for(InstSrcManager::ISrcIdList::iterator it = isrclist.begin();
+		    it != isrclist.end(); ++it, ++count)
+		{
+		    if(count != num)
+			continue;
+
+		    PMError err = Y2PM::instTarget().installProduct((*it)->descr());
+		    if( err != PMError::E_ok)
+		    {
+			cout << "Error: " << err << endl;
+			return 1;
+		    }
+		}
+	    }
+	} break;
     }
     return ret;
 }
