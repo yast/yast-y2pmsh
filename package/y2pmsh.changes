@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Dec 13 10:15:51 CET 2004 - lnussel@suse.de
+
+- install ccache wrapper only for installed compilers
+- set memory ulimit in y2pmbuild
+- 2.11.4
+
+-------------------------------------------------------------------
 Thu Nov  4 14:29:08 CET 2004 - lnussel@suse.de
 
 - fix usage of icecream in combination with ccache in y2pmbuild
