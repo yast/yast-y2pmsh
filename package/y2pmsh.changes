@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed May  5 11:38:39 CEST 2004 - lnussel@suse.de
+
+- fix remove percentage counter
+- fix state -c
+- show total percentage of packages installed/removed
+
+-------------------------------------------------------------------
 Thu Apr 15 15:43:24 CEST 2004 - lnussel@suse.de
 
 - run init immediately unless --no-init is specified on command line
