@@ -104,7 +104,7 @@ static bool y2pmsh_complete_packages(WordCompletion *cpl, const char* line,
     int word_start, int word_end, const string& cmd, const string& word)
 {
     if(!y2pmsh.initialized())
-	return true;
+	return false;
 
     vector<string> words = y2pmsh.cli().completeCommand(cmd, word);
 
