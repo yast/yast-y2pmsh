@@ -413,6 +413,7 @@ void init_commands()
     newcmd("init",	init, 1, "initialize packagemanager (happens automatically if needed)");
     newcmd("help",	help, 0, "this screen");
     newcmd("products", products, 1, "show installed products");
+    newcmd("sourceorder", sourceorder, 1, "set installation order for sources");
     newcmd("_checkpackage", checkpackage, 6, "check rpm file signature");
     newcmd("quit",	quit, 2, "quit");
     newcmd("exit",	quit, 2, "exit");
