@@ -224,7 +224,7 @@ int depstats(vector<string>& argv)
 	PMSelectablePtr sel(*it);
 	if(!sel) continue;
 
-	PMPackagePtr pkg = NULL;
+	PMPackagePtr pkg;
 	if(installed)
 	    pkg = sel->installedObj();
 	else

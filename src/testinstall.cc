@@ -38,6 +38,7 @@
 #include <y2pm/PMSelectionManager.h>
 #include <y2pm/InstSrcDescr.h>
 #include <y2pm/RpmDbCallbacks.h>
+#include <y2pm/MediaCallbacks.h>
 #include <y2pm/PkgArch.h>
 #include <y2pm/InstSrcManager.h>
 
@@ -84,6 +85,7 @@ int upgrade(vector<string>& argv);
 int commit(vector<string>& argv);
 int mem(vector<string>& argv);
 int checkpackage(vector<string>& argv);
+int isc(vector<string>& argv);
 
 int testset(vector<string>& argv);
 int testmediaorder(vector<string>& argv);
@@ -105,9 +107,9 @@ static ostream& operator<<( ostream& os, const struct mallinfo& i )
     return os;
 }
 
-static int solveandcommit(int ret)
+static int solveandcommit(int ret, bool ignoreshellmode = false)
 {
-    if(ret == 0 && !y2pmsh.shellmode())
+    if(ret == 0 && (ignoreshellmode || !y2pmsh.shellmode()))
     {
 	vector<string> nothing;
 	ret = solve(nothing);
@@ -187,25 +189,105 @@ class ConvertDbCallback : public RpmDbCallbacks::ConvertDbCallback
     };
 };
 
+/** print dots according to terminal size */
+class DotPainter
+{
+    private:
+	ProgressCounter _pc;
+	int _cols;
+	int _dots;
+	string _ok;
+
+    public:
+	DotPainter()
+	{
+	    _ok = " ok";
+	}
+
+	virtual void start( const string& msg )
+	{
+	    _pc.reset();
+	    _cols = _dots = 0;
+
+	    _cols = y2pmsh.tty_width();
+
+	    _cols = _cols - msg.length() - _ok.length();
+	    
+	    if(_cols <= 0)
+		_cols = 60;
+	    
+	    cout << msg;
+	};
+	virtual void progress( const ProgressData & prg )
+	{
+	    _pc = prg;
+	    if(_pc.updateIfNewPercent(5) && _pc.percent())
+	    {
+		if(_cols - _dots)
+		{
+		    int needdots = _cols * _pc.percent() / 100;
+		    for(int i = 0; i < needdots - _dots; ++i)
+		    {
+			cout << '.';
+		    }
+		    _dots = needdots;
+		}
+		cout << flush;
+	    }
+	};
+	virtual void stop( PMError error )
+	{
+	    if(error != PMError::E_ok)
+		cout << "*** failed: " << error << endl;
+	    else
+		cout << _ok << endl;
+	};
+};
+
 class InstallPkgCallback : public RpmDbCallbacks::InstallPkgCallback
 {
-    int lastprogress;
-    virtual void start( const Pathname & filename )
-    {
-	lastprogress = 0;
-	cout << "installing " << filename.basename() << " ";
-    };
-    virtual void progress( const ProgressData & prg )
-    {
-	progresscallback(prg, lastprogress);
-    };
-    virtual void stop( PMError error )
-    {
-	if(error != PMError::E_ok)
-	    cout << "## ERROR ##" << error << endl;
-	else
-	    cout << " ok" << endl;
-    };
+    private:
+	DotPainter _dp;
+    public:
+	InstallPkgCallback()
+	{
+	    RpmDbCallbacks::installPkgReport.redirectTo( this );
+	}
+	virtual void start( const Pathname & filename )
+	{
+	    _dp.start(string("installing ") + filename.basename() + " ");
+	};
+	virtual void progress( const ProgressData & prg )
+	{
+	    _dp.progress(prg);
+	};
+	virtual void stop( PMError error )
+	{
+	    _dp.stop(error);
+	};
+};
+
+class DownloadCallback : public MediaCallbacks::DownloadProgressCallback
+{
+    private:
+	DotPainter _dp;
+    public:
+	DownloadCallback()
+	{
+	    MediaCallbacks::downloadProgressReport.redirectTo( this );
+	}
+	virtual void start( const Url & url_r, const Pathname & localpath_r )
+	{
+	    _dp.start(string("downloading ") + Pathname(url_r.path()).basename() + " ");
+	}
+	virtual void progress( const ProgressData & prg )
+	{
+	    _dp.progress(prg);
+	}
+	virtual void stop( PMError error )
+	{
+	    _dp.stop(error);
+	}
 };
 
 class RemovePkgCallback : public RpmDbCallbacks::RemovePkgCallback
@@ -256,6 +338,7 @@ class RebuildDbCallback : public RpmDbCallbacks::RebuildDbCallback
 #endif
 };
 
+static DownloadCallback downloadcallback;
 static InstallPkgCallback installpkgcallback;
 static RebuildDbCallback rebuilddbcallback;
 static ConvertDbCallback convertdbcallback;
@@ -345,6 +428,7 @@ void init_commands()
 #define newpkgcmd(a,b,c,d) newcmd(a,b,c,d); y2pmsh.cli().registerCompleter(new PackageCompleter(a));
 // flags: 1 = need init, 2 = hidden, 4 = advanced
     newpkgcmd("install",	install, 1, "select packages for installation");
+    newpkgcmd("isc",	isc, 1, "install, solve and commit");
     newpkgcmd("deselect",	deselect, 1, "deselect packages marked for installation/removal");
     newpkgcmd("remove",	remove, 1, "select package for removal");
     newcmd("solve",	solve, 1, "solve dependencies");
@@ -528,6 +612,15 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
     }
 
     return failed;
+}
+
+int isc(vector<string>& argv)
+{
+    int ret = install(argv);
+    if(!ret)
+	return solveandcommit(ret, true);
+
+    return ret;
 }
 
 int install(vector<string>& argv)
@@ -716,6 +809,22 @@ int upgrade(vector<string>& argv)
     return 0;
 }
 
+class Print
+{
+    private:
+	ostream& _os;
+	const char* _form;
+    public:
+	Print(ostream& os, const char* form)
+	    : _os(os), _form(form)
+	{
+	}
+	void operator()(const string& str)
+	{
+	    _os << stringutil::form(_form, str.c_str());
+	}
+};
+
 int commit(vector<string>& argv)
 {
     std::list<std::string> errors_r;
@@ -746,17 +855,23 @@ int commit(vector<string>& argv)
     }
 #endif
 
-    Y2PM::commitPackages (0,errors_r, remaining_r, srcremaining_r);
+    int num = Y2PM::commitPackages (0,errors_r, remaining_r, srcremaining_r);
+
+    cout << num << " packages installed" << endl;
 
     int failed = 0;
-    if(!remaining_r.empty())
+    if(!errors_r.empty())
     {
 	failed = 1;
 	cout << "failed packages:" << endl;
-	for(list<string>::iterator it=remaining_r.begin(); it!=remaining_r.end();++it)
-	{
-	    cout << *it << endl;
-	}
+	for_each(errors_r.begin(), errors_r.end(), Print(cout, "  %s\n"));
+    }
+
+    if(!remaining_r.empty())
+    {
+	failed = 1;
+	cout << "remaining packages:" << endl;
+	for_each(remaining_r.begin(), remaining_r.end(), Print(cout, "  %s\n"));
     }
 
     if(variables["quitoncommit"].getBool())
@@ -969,7 +1084,6 @@ int main( int argc, char *argv[] )
     if(argc > 1)
 	y2pmsh.shellmode(false);
 
-    RpmDbCallbacks::installPkgReport.redirectTo(installpkgcallback);
     RpmDbCallbacks::rebuildDbReport.redirectTo(rebuilddbcallback);
     RpmDbCallbacks::convertDbReport.redirectTo(convertdbcallback);
     RpmDbCallbacks::removePkgReport.redirectTo(removepkgcallback);
