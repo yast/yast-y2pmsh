@@ -1,4 +1,4 @@
-y2pmbuildconfdists_DATA = 9.0-i386 8.2-i386
+y2pmbuildconfdists_DATA = 9.1 9.0 8.2
 y2pmbuildconfdistsdir = $(sysconfdir)/y2pmbuild/dists
 
 bin_SCRIPTS = sudoy2pmbuild

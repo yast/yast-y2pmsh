@@ -82,6 +82,8 @@ addsourcesfromrepository()
     [ "$have_repo" != 1 ] && return 0
 
     echo "set cachetodisk false"
+    echo "_deletemediaatexit"
+    echo "set autosource false"
 
     if [ -n "$url_repository" ]; then
 	# doesn't work yet, can't add plainsources with cachetodisk false
@@ -127,6 +129,7 @@ parse_spec()
     file="$1";
     [ ! -e "$file" ] && return 1
     spec_usedforbuild=`grep "^# *usedforbuild" "$file" || true`
+    spec_usedforbuild="$spec_norootforbuild `grep "^BuildRequires:" "$file" || true`"
     spec_norootforbuild=`grep "^# *norootforbuild" "$file" || true`
 
     if [ -z "$spec_norootforbuild" ]; then
@@ -137,14 +140,11 @@ parse_spec()
 # $1 specfile
 getneededforbuild()
 {
-#    if [ -z "$spec_usedforbuild" ] ; then
-#	neededpackages="$defaultpackages"
-#    fi
     for i in $spec_usedforbuild; do
 	case "$i" in
 	\#*)
 	;;
-	usedforbuild)
+	usedforbuild|BuildRequires:)
 	;;
 	*)
 	    neededpackages="$neededpackages $i"
@@ -181,6 +181,7 @@ installpackages()
     addsourcesfromrepository >> "$y2pmshcmds"
 	
     cat >> "$y2pmshcmds" <<-EOF
+	source -s
 	set debug $builddebugsolve
 	buildsolve $neededpackages $defaultpackages
 	set debug 0
@@ -197,7 +198,7 @@ installpackages()
 setuptimezone()
 {
     # FIXME sucks
-    if [ -e "$buildroot/usr/sbin/zic" ]; then
+    if [ -e "$buildroot/usr/sbin/zic" -a -e "$buildroot/bin/su" -a -e "$buildroot/etc/passwd" ]; then
 	chroot "$buildroot" su - -c "/usr/sbin/zic -l GMT"
     else
 	install -m 755 -d "$buildroot/etc"
@@ -390,7 +391,7 @@ for spec in "$specfiles"; do
 
     rpmbuildstage=-ba
 
-    chroot "$buildroot" su - $builduser -c "$rpmbuild $rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
+    chroot "$buildroot" su - $builduser -c "$rpmbuild --nodeps $rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
 
     success=1;
     echo -n "done $spec at " >> "$buildroot/.build.packages"

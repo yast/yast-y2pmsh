@@ -1,6 +1,7 @@
 #ifndef Y2PMSH_H
 #define Y2PMSH_H
 
+#include <list>
 #include <vector>
 #include <string>
 #include <map>
@@ -59,11 +60,14 @@ class Commands
 	
 };
 
+class QuitHandler;
+
 class Y2PMSH
 {
     private:
 	bool _initialized;
 	bool _releasemediainstalled; // whether the atexit handler is installed
+	bool _mediadeleteinstalled;  // whether the atexit handler is installed
 
 	bool _interactive;
 	bool _shellmode;
@@ -72,6 +76,11 @@ class Y2PMSH
 	CmdLineIface* _cli;
 
 	static const char appname[];
+	
+	typedef std::list<QuitHandler*> QuitHandlerList;
+	QuitHandlerList _quithandlers;
+
+	void addQuitHandler(QuitHandler*);
 
     public:
 	Y2PMSH();
@@ -85,6 +94,8 @@ class Y2PMSH
 	bool targetinit();
 
 	bool ReleaseMediaAtExit();
+	
+	bool DeleteMediaAtExit();
 
 	/** whether we are connected to a terminal */
 	bool interactive();
@@ -100,6 +111,9 @@ class Y2PMSH
 
 	/** access to command line interface */
 	CmdLineIface& cli(void);
+
+	/** run and destroy quit handlers */
+	void quit();
 };
 
 extern Y2PMSH y2pmsh;

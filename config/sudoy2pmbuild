@@ -1,8 +1,10 @@
 #!/bin/bash
 
+y2pmbuildconfdir=/etc/y2pmbuild
+
 if [ -z "$tried_to_get_root" ]; then
         export tried_to_get_root="$LOGNAME"
-        exec sudo "$0" "$@"
+        exec sudo -H "$0" "$@"
         exit 1
 fi
 
@@ -20,10 +22,15 @@ if [ -z "$BUILD_DIST" ]; then
         esac
 
         case "$0" in
-                *build-*) ver=${0#*build-}-;;
+                *build-*) ver=${0#*build-};;
         esac
 
-        [ -n "$ver" ] && export BUILD_DIST="$ver$arch"
+        if [ -e "$y2pmbuildconfdir/dists/$ver-$arch" ]; then
+		export BUILD_DIST="$ver-$arch"
+	elif [ -n "$ver" -a -e "$y2pmbuildconfdir/dists/$ver" ]; then
+		export BUILD_DIST="$ver"
+	fi
+		
 fi
 
 export LOGNAME=$tried_to_get_root
