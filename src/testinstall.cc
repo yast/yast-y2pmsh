@@ -948,7 +948,7 @@ int main( int argc, char *argv[] )
     if(argc > 1)
 	y2pmsh.shellmode(false);
 
-    if(y2pmsh.shellmode())
+    if(1)
     {
 #ifdef USEREADLINE
 	cli = new CmdLineIfaceRL(appname);
@@ -1003,6 +1003,7 @@ int main( int argc, char *argv[] )
 	    cli->addToHistory(inputstr);
 
 	    vector<string> tmp;
+/*
 	    if(stringutil::split(inputstr, tmp, ";") < 1)
 	    {
 		cout << "invalid input: " << inputstr << endl;
@@ -1024,6 +1025,9 @@ int main( int argc, char *argv[] )
 		}
 		cmds.push_back(argv);
 	    }
+*/
+	    cli->parsewords(inputstr, tmp);
+	    cmds.push_back(tmp);
 	}
 	else
 	{
@@ -1035,7 +1039,7 @@ int main( int argc, char *argv[] )
 	    cmds.push_back(tmp);
 	    cliok = false;
 
-	    Variable::assign(variables["quitoncommit"], "true");
+//	    Variable::assign(variables["quitoncommit"], "true");
 	}
 
 	for(vector<vector<string> >::iterator vit = cmds.begin();
@@ -1062,8 +1066,18 @@ int main( int argc, char *argv[] )
 		mainret = cmdptr->run(argv);
 		if(showtimes) t.stopTimer();
 		if(showtimes) cout << "time: " << t << endl;
-		if(mainret && variables["quitonfail"].getBool())
-		    _keep_running = false;
+		if(mainret)
+		{
+		    if(!y2pmsh.shellmode()) // switch to interactive on error
+		    {
+			y2pmsh.shellmode(true);
+			cliok = true;
+		    }
+		    else if(variables["quitonfail"].getBool())
+		    {
+			_keep_running = false;
+		    }
+		}
 	    }
 	    else
 	    {
