@@ -71,7 +71,6 @@ bool CmdLineIfaceTecla::getLine(string& line)
     else
 	prompt[0]='\0';
 
-    snprintf(prompt,sizeof(prompt)-1,"[%d] y2pm > ", lastRetCode());
     buf = gl_get_line(static_cast<GetLine*>(_pd), prompt, NULL, -1);
 
     if(buf)
