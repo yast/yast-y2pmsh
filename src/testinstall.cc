@@ -39,6 +39,7 @@
 #include <y2pm/InstSrcDescr.h>
 #include <y2pm/RpmDbCallbacks.h>
 #include <y2pm/PkgArch.h>
+#include <y2pm/InstSrcManager.h>
 
 #include <stdint.h>
 #include <malloc.h>
@@ -82,6 +83,7 @@ int upgrade(vector<string>& argv);
 int commit(vector<string>& argv);
 int summary(vector<string>& argv);
 int mem(vector<string>& argv);
+int checkpackage(vector<string>& argv);
 
 int testset(vector<string>& argv);
 int testmediaorder(vector<string>& argv);
@@ -382,6 +384,7 @@ void init_commands()
     newcmd("init",	init, 1, "initialize packagemanager (happens automatically if needed)");
     newcmd("help",	help, 0, "this screen");
     newcmd("products", products, 1, "show installed products");
+    newcmd("checkpackage", checkpackage, 6, "check rpm file signature");
 #undef newpkgcmd
 #undef newcmd
 }
@@ -1158,6 +1161,26 @@ int testset(vector<string>& argv)
     testset = NULL;
 
     cout << mallinfo() << endl;
+    return 0;
+}
+
+
+int checkpackage(vector<string>& argv)
+{
+    if(argv.size() < 2)
+    {
+	cout << "need arg" << endl;
+	return 1;
+    }
+
+    string file = argv[1];
+
+    RpmDb rpm;
+
+    unsigned ret = rpm.checkPackage(file);
+
+    cout << rpm.checkPackageResult2string(ret) << endl;
+
     return 0;
 }
 

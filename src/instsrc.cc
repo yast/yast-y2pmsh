@@ -2,6 +2,7 @@
 
 #include <Y2PM.h>
 #include <y2pm/InstSrcDescr.h>
+#include <y2pm/InstSrcManager.h>
 
 #include "y2pmsh.h"
 #include "instsrc.h"
