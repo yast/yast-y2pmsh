@@ -16,6 +16,9 @@
 #include "variables.h"
 #include "instsrc.h"
 
+#include <sys/ioctl.h>
+#include <termios.h>
+
 using namespace std;
 
 Command::Command(const char* name, CommandFunc func, unsigned flags, const char* help)
@@ -280,6 +283,24 @@ CmdLineIface& Y2PMSH::cli(void)
     }
 
     return *_cli;
+}
+
+int Y2PMSH::tty_width()
+{
+    if(!::isatty(0))
+	return 80;
+#ifdef TIOCGWINSZ
+    struct winsize size;
+    if(::ioctl(0, TIOCGWINSZ, &size) == 0 && size.ws_col > 0)
+	return size.ws_col;
+#endif
+    if(::getenv("COLUMNS"))
+    {
+	int cols = ::atoi(::getenv("COLUMNS"));
+	if(cols > 0)
+	    return cols;
+    }
+    return 80; // default
 }
 
 const char Y2PMSH::appname[] = "y2pmsh";

@@ -114,6 +114,9 @@ class Y2PMSH
 
 	/** run and destroy quit handlers */
 	void quit();
+
+	/** return number of column of terminal. returns 80 as fallback */
+	int tty_width();
 };
 
 extern Y2PMSH y2pmsh;
