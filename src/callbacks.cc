@@ -14,87 +14,13 @@
 
 #include "y2pmsh.h"
 #include "callbacks.h"
+#include "dotpainter.h"
 
 using namespace std;
 using namespace stringutil;
 
 ProgressCounter y2pmshCB::toinstallcounter; // should go into pkgmanager
 ProgressCounter y2pmshCB::todeletecounter; // should go into pkgmanager
-
-/** print dots according to terminal size */
-class DotPainter
-{
-    private:
-	ProgressCounter _pc;
-	int _cols; // terminal width
-	int _dots; // number of already painted dots
-	string _ok; // string to display in case of success
-	unsigned _updatepercent; // dots are painted after this number of percentage has changed
-
-    protected:
-	virtual void paint()
-	{
-	    if(_cols - _dots)
-	    {
-		int needdots = _cols * _pc.percent() / 100;
-		if(needdots > _dots)
-		{
-		    for(int i = 0; i < needdots - _dots; ++i)
-		    {
-			cout << '.';
-		    }
-		    cout << flush;
-		    _dots = needdots;
-		}
-	    }
-	}
-
-    public:
-	DotPainter(const std::string ok = " ok") : _ok(ok)
-	{
-	}
-
-	virtual ~DotPainter() {};
-
-	virtual void start( const string& msg )
-	{
-	    _pc.reset();
-	    _cols = _dots = 0;
-
-	    _cols = y2pmsh.tty_width();
-
-	    _cols = _cols - msg.length() - _ok.length();
-	    
-	    if(_cols <= 0)
-		_cols = 60;
-	    
-	    cout << msg;
-	};
-	virtual void progress( const ProgressData & prg )
-	{
-	    _pc = prg;
-	    if(_pc.updateIfNewPercent(_updatepercent) && _pc.percent())
-	    {
-		paint();
-	    }
-	};
-	virtual void stop( PMError error )
-	{
-	    if(error != PMError::E_ok)
-		cout << "\n *** failed: " << error << endl;
-	    else
-	    {
-		_pc.set(100);
-		paint();
-
-		cout << _ok << endl;
-	    }
-	};
-	void updatePercent(unsigned percent)
-	{
-	    _updatepercent = percent;
-	}
-};
 
 class ConvertDbCallback : public RpmDbCallbacks::ConvertDbCallback
 {
@@ -358,7 +284,7 @@ class CommitProvideCallback : public Y2PMCallbacks::CommitProvideCallback
 	}
 	virtual CBSuggest attempt( unsigned cnt )
 	{
-	    _dp.start(string("downloading ") + package );
+	    _dp.start(string("fetching ") + package );
 	    return CBSuggest::PROCEED;
 	}
 	virtual CBSuggest result( PMError error, const Pathname & localpath )

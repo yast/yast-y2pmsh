@@ -15,9 +15,7 @@
 #include "y2pmsh.h"
 #include "variables.h"
 #include "instsrc.h"
-
-#include <sys/ioctl.h>
-#include <termios.h>
+#include "tty.h"
 
 using namespace std;
 
@@ -138,7 +136,7 @@ Y2PMSH::Y2PMSH() : _initialized(false),
     _mediadeleteinstalled(false),
     _shellmode(true), _cli(NULL)
 {
-    _interactive = ::isatty(0);
+    _interactive = TTY::isatty();
     _dosetenv = (::getenv("YAST_IS_RUNNING") == NULL);
 }
 
@@ -205,7 +203,7 @@ int Y2PMSH::init(vector<string>& argv)
 
 bool Y2PMSH::interactive()
 {
-    return _interactive = ::isatty(0);
+    return _interactive = TTY::isatty();
 }
 
 bool Y2PMSH::shellmode()
@@ -315,24 +313,6 @@ CmdLineIface& Y2PMSH::cli(void)
     }
 
     return *_cli;
-}
-
-int Y2PMSH::tty_width()
-{
-    if(!::isatty(0))
-	return 80;
-#ifdef TIOCGWINSZ
-    struct winsize size;
-    if(::ioctl(0, TIOCGWINSZ, &size) == 0 && size.ws_col > 0)
-	return size.ws_col;
-#endif
-    if(::getenv("COLUMNS"))
-    {
-	int cols = ::atoi(::getenv("COLUMNS"));
-	if(cols > 0)
-	    return cols;
-    }
-    return 80; // default
 }
 
 const char Y2PMSH::appname[] = "y2pmsh";
