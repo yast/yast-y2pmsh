@@ -250,6 +250,12 @@ class RebuildDbCallback : public RpmDbCallbacks::RebuildDbCallback
 	else
 	    cout << " ok" << endl;
     };
+#ifndef SUSE90COMPAT
+    virtual void notify( const string& msg )
+    {
+	cout << msg << endl;
+    }
+#endif
 };
 
 static InstallPkgCallback installpkgcallback;
@@ -325,7 +331,7 @@ void init_commands()
     newcmd("whatrequires",	whatrequires, 1, "search for package requirement");
     newcmd("whatdependson",	whatdependson, 1, "search for depending packages");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
-    newcmd("query",     query, 5, "query packagemanager");
+//    newcmd("query",     query, 5, "query packagemanager");
     newcmd("source",	source, 0, "manage installation sources");
     newcmd("enablesources", enablesources, 3, "enable all sources");
     newcmd("buildsolve",	buildsolve, 3, "solve dependencies like the build script");
@@ -973,7 +979,7 @@ int main( int argc, char *argv[] )
 	    cli->addToHistory(inputstr);
 
 	    vector<string> tmp;
-	    if(RpmDb::tokenize(inputstr, ';', 0, tmp) < 1)
+	    if(stringutil::split(inputstr, tmp, ";") < 1)
 	    {
 		cout << "invalid input: " << inputstr << endl;
 		continue;
@@ -987,7 +993,7 @@ int main( int argc, char *argv[] )
 		    continue;
 
 		vector<string> argv;
-		if(RpmDb::tokenize(cmd, ' ', 0, argv) < 1)
+		if(stringutil::split(cmd, argv, " \t\n") < 1)
 		{
 		    cout << "invalid input: " << cmd << endl;
 		    continue;

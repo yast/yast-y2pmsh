@@ -2,6 +2,7 @@
 #define Y2PMSH_CMDLINEIFACE_H
 
 #include <string>
+#include <vector>
 
 class CmdLineIface
 {
@@ -33,6 +34,9 @@ class CmdLineIface
 
 	/** whether this is an interactive session */
 	bool interactive();
+
+	/** tokenzie a line into words */
+	void parsewords(const std::string& line, std::vector<std::string>& words);
 };
 
 #endif

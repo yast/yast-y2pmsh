@@ -5,7 +5,7 @@
 
 #include <Y2PM.h>
 #include <y2pm/PMPackageManager.h>
-#include <y2pm/Query.h>
+//#include <y2pm/Query.h>
 
 #include "y2pmsh.h"
 #include "helpscreen.h"
@@ -180,6 +180,7 @@ int whatdependson(vector<string>& argv)
     return 0;
 }
 
+#if 0
 int query(vector<string>& argv)
 {
     stringstream str;
@@ -215,6 +216,7 @@ int query(vector<string>& argv)
     
     return 0;
 }
+#endif
 
 int newer(vector<string>& argv)
 {

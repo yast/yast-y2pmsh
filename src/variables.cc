@@ -11,6 +11,11 @@
 
 using namespace std;
 
+#ifdef SUSE90COMPAT
+#define set_log_filename Y2Logging::setLogfileName
+#define get_log_filename Y2Logging::getLogfileName
+#endif
+
 VariableMap variables;
 static map<string,string> vardesc;
 
@@ -140,7 +145,7 @@ static const char* timestat(const Variable& v)
 static const char* logfilevalidate(const Variable& v)
 {
     if(!v.isString()) return "must be String";
-    Y2Logging::setLogfileName(v.getString());
+    set_log_filename(v.getString());
     return NULL;
 }
 
@@ -177,7 +182,7 @@ static const char* pkginstflags2stings(const unsigned flags)
 static bool string2pkginstflags(string str, unsigned &flags)
 {
     vector<string> tokens;
-    if(RpmDb::tokenize(str, '|', 0, tokens) < 1)
+    if(stringutil::split(str, tokens, "|") < 1)
     {
 	cout << "invalid input" << endl;
 	return false;
@@ -322,7 +327,7 @@ void init_variables()
     variables["quitonfail"] = Variable("0",false);
     vardesc["quitonfail"] = "quit if a command failed";
 
-    variables["logfile"] = Variable(Y2Logging::getLogfileName().c_str(),false,logfilevalidate);
+    variables["logfile"] = Variable(get_log_filename().c_str(),false,logfilevalidate);
     vardesc["logfile"] = "set log file";
 
     variables["instlog"] = Variable("",false,instlogvalidate);
