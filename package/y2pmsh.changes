@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Fri Sep 10 17:04:36 CEST 2004 - lnussel@suse.de
+
+- move class for painting progress dots in separate file
+- fix prompt in non-interactive mode
+- add options to only show dependencies to 'show' function
+- add "top ten" feature to 'depstats'
+- 2.10.0
+
+-------------------------------------------------------------------
 Fri May 28 12:31:40 CEST 2004 - lnussel@suse.de
 
 - implemented view/install/remove products
