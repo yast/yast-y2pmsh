@@ -125,12 +125,60 @@ static int solveandcommit(int ret, bool ignoreshellmode = false)
     return ret;
 }
 
+class CheckSkipPackage
+{
+    public:
+	virtual ~CheckSkipPackage() {};
+	virtual bool operator() (PMSelectablePtr p)
+	{
+	    return false;
+	}
+};
+
+/** check whether package is installed */
+class SkipNotInstalledPackage : public CheckSkipPackage
+{
+    public:
+	virtual ~SkipNotInstalledPackage() {};
+	// skip not installed packages
+	virtual bool operator() (PMSelectablePtr p)
+	{
+	    if(p->has_installed())
+		return false;
+	    else
+		return true;
+	}
+};
+
+/** check whether installed package is older and can be upgraded */
+class SkipNoCandidates : public CheckSkipPackage
+{
+    public:
+	virtual ~SkipNoCandidates() {};
+	// return true if package should be skipped
+	virtual bool operator() (PMSelectablePtr p)
+	{
+	    if(!p->has_candidate())
+		return true;
+	    else
+		return false;
+	}
+};
+
 /** tab expansion */
 class SelectableCompleter : public CmdLineIface::Completer
 {
     private:
 	string _name;
 	PMManager& _manager;
+	CheckSkipPackage _skip;
+    
+    protected:
+	/** return package skip object */
+	virtual CheckSkipPackage& skipper()
+	{
+	    return _skip;
+	}
 
     public:
 	SelectableCompleter(const string& name, PMManager& manager)
@@ -148,6 +196,9 @@ class SelectableCompleter : public CmdLineIface::Completer
 	    for (it = _manager.begin();
 		it != _manager.end(); ++it)
 	    {
+		if(skipper()(*it))
+		    continue;
+
 		string name = (*it)->name();
 		if(name.substr(0, word.length()) == word)
 		{
@@ -167,6 +218,45 @@ class PackageCompleter : public SelectableCompleter
 	{
 	}
 };
+
+class InstalledPackageCompleter : public SelectableCompleter
+{
+    private:
+	SkipNotInstalledPackage _skip;
+    
+    protected:
+	/** return package skip object */
+	virtual CheckSkipPackage& skipper()
+	{
+	    return _skip;
+	}
+
+    public:
+	InstalledPackageCompleter(const string& name) : SelectableCompleter(name, Y2PM::packageManager()) {}
+	virtual ~InstalledPackageCompleter()
+	{
+	}
+};
+
+class CandidatePackageCompleter : public SelectableCompleter
+{
+    private:
+	SkipNoCandidates _skip;
+    
+    protected:
+	/** return package skip object */
+	virtual CheckSkipPackage& skipper()
+	{
+	    return _skip;
+	}
+
+    public:
+	CandidatePackageCompleter(const string& name) : SelectableCompleter(name, Y2PM::packageManager()) {}
+	virtual ~CandidatePackageCompleter()
+	{
+	}
+};
+
 
 class SelectionCompleter : public SelectableCompleter
 {
@@ -188,16 +278,6 @@ class SelectableWordExpander : public Command::WordExpander
 	PMManager& _manager;
 
     protected:
-	class CheckSkipPackage
-	{
-	    public:
-		virtual ~CheckSkipPackage() {};
-		virtual bool operator() (PMSelectablePtr p)
-		{
-		    return false;
-		}
-	};
-
 	class MatchPackage
 	{
 	    private:
@@ -281,21 +361,6 @@ class SelectableWordExpander : public Command::WordExpander
 class CandidateSelectableWordExpander : public SelectableWordExpander
 {
     protected:
-	/** check whether installed package is older and can be upgraded */
-	class SkipNoCandidates : public CheckSkipPackage
-	{
-	    public:
-		virtual ~SkipNoCandidates() {};
-		// return true if package should be skipped
-		virtual bool operator() (PMSelectablePtr p)
-		{
-		    if(!p->has_candidate())
-			return true;
-		    else
-			return false;
-		}
-	};
-
 	SkipNoCandidates _skip;
 	virtual CheckSkipPackage& skipper()
 	{
@@ -309,21 +374,6 @@ class CandidateSelectableWordExpander : public SelectableWordExpander
 class InstalledSelectableWordExpander : public SelectableWordExpander
 {
     protected:
-	/** check whether package is installed */
-	class SkipNotInstalledPackage : public CheckSkipPackage
-	{
-	    public:
-		virtual ~SkipNotInstalledPackage() {};
-		// skip not installed packages
-		virtual bool operator() (PMSelectablePtr p)
-		{
-		    if(p->has_installed())
-			return false;
-		    else
-			return true;
-		}
-	};
-
 	SkipNotInstalledPackage _skip;
 	virtual CheckSkipPackage& skipper()
 	{
@@ -340,16 +390,18 @@ void init_commands()
 #define newcmd(a,b,c,d) \
     y2pmsh.cmd.add(new Command(a,b,c,d))
 #define newpkgcmd(a,b,c,d) \
-    newcmd(a,b,c,d); \
-    y2pmsh.cli().registerCompleter(new PackageCompleter(a));
+    newcmd(a,b,c,d);
 #define newpkgcmdC(a,b,c,d) \
     newpkgcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new CandidatePackageCompleter(a)); \
     y2pmsh.cmd[a]->Expander(new CandidateSelectableWordExpander(Y2PM::packageManager()));
 #define newpkgcmdI(a,b,c,d) \
     newpkgcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new InstalledPackageCompleter(a)); \
     y2pmsh.cmd[a]->Expander(new InstalledSelectableWordExpander(Y2PM::packageManager()));
 #define newpkgcmdA(a,b,c,d) \
     newpkgcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new PackageCompleter(a)); \
     y2pmsh.cmd[a]->Expander(new SelectableWordExpander(Y2PM::packageManager()));
 
 #define newselcmd(a,b,c,d) \
@@ -383,7 +435,7 @@ void init_commands()
     newcmd("whatrequires",	whatrequires, 1, "search for package requirement");
     newpkgcmdA("whatdependson",	whatdependson, 1, "search for depending packages");
     newpkgcmdA("whatconflictswith", whatconflictswith, 1, "search for conflicting packages");
-    newpkgcmd("allconflicts", allconflicts, 1, "display all conflicting packages");
+    newpkgcmdA("allconflicts", allconflicts, 1, "display all conflicting packages");
     newpkgcmdA("depends",	depends, 1, "search for depending packages");
     newpkgcmdA("why",	why, 1, "print solve results for arguments");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
