@@ -18,6 +18,7 @@ class Command
 	typedef COMMAND_FUNC(CommandFunc);
 	
 	Command(const char* name, CommandFunc func, unsigned flags, const char* help);
+	~Command();
 
 	const std::string& name() const;
 	const CommandFunc func() const;
@@ -26,17 +27,35 @@ class Command
 	
 	int run(std::vector<std::string>& argv) const;
 
+	class WordExpander
+	{
+	    public:
+		WordExpander() {}
+		virtual ~WordExpander() {}
+		virtual std::vector<std::string> operator()(const std::vector<std::string>& words)
+		{
+		    return words;
+		}
+	};
+
+	void Expander(WordExpander* e);
+
+	WordExpander& Expander();
+
+	bool hasExpander();
+
     private:
 	std::string _name;
 	CommandFunc _func;
 	std::string _help;
 	unsigned _flags;
+	WordExpander* _expander;
 };
 
 class Commands
 {
     public:
-	typedef std::map<std::string,const Command*> CommandList;
+	typedef std::map<std::string,Command*> CommandList;
 	typedef CommandList::const_iterator const_iterator;
 
 	Commands();
@@ -44,14 +63,14 @@ class Commands
 
 	unsigned count() const;
 
-	void add(const Command*);
+	void add(Command*);
 
 	const_iterator begin() const;
 	const_iterator end() const;
 
 	std::vector<std::string> startswith(std::string) const;
 
-	const Command* operator[](const std::string&);
+	Command* operator[](const std::string&);
 
     private:
 	CommandList _commands;
@@ -91,7 +110,10 @@ class Y2PMSH
 
 	int init(std::vector<std::string>& argv);
 	
-	bool targetinit();
+	/** initialize target
+	 * @param root root directory. Variable "root" is used if empty
+	 * */
+	bool targetinit(std::string root = "");
 
 	bool ReleaseMediaAtExit();
 	

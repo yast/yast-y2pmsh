@@ -8,13 +8,14 @@
 //#include <y2pm/Query.h>
 
 #include "y2pmsh.h"
+#include "summary.h"
 #include "helpscreen.h"
 
 using namespace std;
 
 int search(vector<string>& argv)
 {
-    list<PMPackagePtr> matches;
+    list<PMSelectablePtr> matches;
 
     if(argv.size() < 2 || argv[1] == "--help")
     {
@@ -36,18 +37,14 @@ int search(vector<string>& argv)
 //	if(sp->name().asString().substr(0,what.length()) == what)
 	if(sp->name().asString().find(what) != string::npos)
 	{
-	    matches.push_back(sp->theObject());
+	    matches.push_back(sp);
 	}
     }
 
-    for(list<PMPackagePtr>::iterator it = matches.begin();
-	it != matches.end(); ++it)
-    {
-	PMPackagePtr pp = *it;
-	if(!pp) continue;
+    PrintSelectable::Flags flags;
+    flags.summary = true;
 
-	cout << pp->name() << " - " << pp->summary() << endl;
-    }
+    for_each(matches.begin(), matches.end(), PrintSelectable(cout, flags));
 
     return 0;
 }
