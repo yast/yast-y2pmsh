@@ -53,9 +53,17 @@ cleanup()
 regenrepository()
 {
     [ "$have_repo" != 1 ] && return 0
+
+    local do_regen
+    do_regen=1
+    [ "$1" = "--init" ] && do_regen=0
     
     install -m 755 -d "$repository"
 
+    [ -z "`echo $repository/*`" ] && do_regen=1
+
+    [ "$do_regen" = "0" ] && return 0
+    
     if [ "$regen_repository" = plain ]; then
 	pushd .
 	cd "$repository"
@@ -168,7 +176,7 @@ installpackages()
 	set verbose 1
 	EOF
 
-    regenrepository
+    regenrepository --init
 
     addsourcesfromrepository >> "$y2pmshcmds"
 	
