@@ -206,6 +206,8 @@ class DotPainter
 	    _ok = " ok";
 	}
 
+	virtual ~DotPainter() {};
+
 	virtual void start( const string& msg )
 	{
 	    _pc.reset();
@@ -296,23 +298,25 @@ class DownloadCallback : public MediaCallbacks::DownloadProgressCallback
 
 class RemovePkgCallback : public RpmDbCallbacks::RemovePkgCallback
 {
-    int lastprogress;
-    virtual void start( const std::string & label )
-    {
-	lastprogress = 0;
-	cout << "removing " << label << " ";
-    };
-    virtual void progress( const ProgressData & prg )
-    {
-	progresscallback(prg, lastprogress);
-    };
-    virtual void stop( PMError error )
-    {
-	if(error != PMError::E_ok)
-	    cout << error << endl;
-	else
-	    cout << " ok" << endl;
-    };
+    private:
+	DotPainter _dp;
+    public:
+	RemovePkgCallback()
+	{
+	    RpmDbCallbacks::removePkgReport.redirectTo( this );
+	}
+	virtual void start( const string& label )
+	{
+	    _dp.start(string("removing ") + label + " ");
+	};
+	virtual void progress( const ProgressData & prg )
+	{
+	    _dp.progress(prg);
+	};
+	virtual void stop( PMError error )
+	{
+	    _dp.stop(error);
+	};
 };
 
 class RebuildDbCallback : public RpmDbCallbacks::RebuildDbCallback
@@ -725,8 +729,8 @@ int solvesel(vector<string>& argv)
     bool ok = solve_internal(Y2PM::selectionManager(), argv);
     if(ok)
     {
-	cout << "solve ok, activation selection" << endl;
-	Y2PM::selectionManager().activate(Y2PM::packageManager());
+	cout << "solve ok, activating selection" << endl;
+	Y2PM::selectionManager().activate();
     }
     return ok?0:1;
 }
@@ -886,9 +890,8 @@ int commit(vector<string>& argv)
     }
     else
     {
-	PMError err;
 	cout << "rereading installed packages ... " << flush;
-	err = Y2PM::instTargetUpdate();
+	PMError err = Y2PM::instTargetUpdate();
 	cout << err << endl;
 	if(err)
 	    cout << endl << "System is in an undefined state now, please quit" << endl;
@@ -1297,11 +1300,15 @@ int checkpackage(vector<string>& argv)
 
     string file = argv[1];
 
+#if 0
+    cout << Y2PM::instTarget().checkPackage(file) << endl;
+#else
     RpmDb rpm;
 
     unsigned ret = rpm.checkPackage(file);
 
     cout << rpm.checkPackageResult2string(ret) << endl;
+#endif
 
     return 0;
 }

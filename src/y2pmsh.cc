@@ -106,7 +106,10 @@ unsigned Commands::count() const
     return _commands.size();
 }
 	
-Y2PMSH::Y2PMSH() : _initialized(false), _shellmode(true), _cli(NULL)
+Y2PMSH::Y2PMSH() : _initialized(false),
+    _releasemediainstalled(false),
+    _mediadeleteinstalled(false),
+    _shellmode(true), _cli(NULL)
 {
     _interactive = ::isatty(0);
     _dosetenv = (::getenv("YAST_IS_RUNNING") == NULL);

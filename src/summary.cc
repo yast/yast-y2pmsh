@@ -24,7 +24,7 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
     {
 	    HelpScreen h(argv[0]);
 	    h.Parameter(HelpScreenParameter("-a", "--all", "show all objects"));
-	    h.Parameter(HelpScreenParameter("-c", "--canged", "show only objects with changes"));
+	    h.Parameter(HelpScreenParameter("-c", "--changed", "show only objects with changes"));
 	    cout << h;
 	    return 0;
     }

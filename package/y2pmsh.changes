@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Mon Mar 29 11:46:02 CEST 2004 - lnussel@suse.de
+
+- fix some typos, warnings, uninitialized variables
+- fix usedforbuild in y2pmbuild
+- add 9.1 link for y2pmbuild
+- print correct number of dots also when removing packages
+- 2.9.2
+
+-------------------------------------------------------------------
 Thu Mar 25 17:08:13 CET 2004 - lnussel@suse.de
 
 - new commands whatconflictswith, allconflicts, depstats, isc

@@ -129,7 +129,7 @@ parse_spec()
     file="$1";
     [ ! -e "$file" ] && return 1
     spec_usedforbuild=`grep "^# *usedforbuild" "$file" || true`
-    spec_usedforbuild="$spec_norootforbuild `grep "^BuildRequires:" "$file" || true`"
+    spec_usedforbuild="$spec_usedforbuild `grep "^BuildRequires:" "$file" || true`"
     spec_norootforbuild=`grep "^# *norootforbuild" "$file" || true`
 
     if [ -z "$spec_norootforbuild" ]; then
