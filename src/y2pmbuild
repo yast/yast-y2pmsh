@@ -8,10 +8,12 @@ create_package_descr=/opt/kde3/share/apps/krpmview/create_package_descr
 
 ccache=0
 icecream=0
-mjobs=1
+bjobs=1
 quilt=0
 doinit=1
 rpmbuild=rpmbuild
+rpmbuildstage=a
+target=
 
 success=0;
 
@@ -259,12 +261,23 @@ setupccache()
 {
     chroot "$buildroot" su - "$builduser" -c "ls -ld ~$builduser"
     if [ "$ccache" = 1 ]; then
-	chroot "$buildroot" su - "$builduser" -c "mkdir -p ~$builduser/bin && for i in gcc g++ cc c++; do ln -sf /usr/bin/ccache ~$builduser/bin/\$i; done"
+	if mkdir -p $buildroot/opt/ccache/bin; then
+	    for i in gcc g++ cc c++; do
+#		ln -sf /usr/bin/ccache $buildroot/opt/ccache/bin/$i
+		rm -f $buildroot/opt/ccache/bin/$i
+		echo '#! /bin/sh' > $buildroot/opt/ccache/bin/$i
+	        echo 'export PATH=/opt/icecream/bin:/usr/bin:$PATH' >> $buildroot/opt/ccache/bin/$i
+		echo "ccache $i \"\$@\"" >> $buildroot/opt/ccache/bin/$i
+		chmod 755 $buildroot/opt/ccache/bin/$i
+	    done
+	fi
 	mkdir -p "$buildroot"/.ccache
 	chroot "$buildroot" chown -R "$builduser" "/.ccache"
 	echo "export CCACHE_DIR=/.ccache" > "$buildroot"/etc/profile.d/build_ccache.sh
+	echo 'export PATH=/opt/ccache/bin:$PATH' >> "$buildroot"/etc/profile.d/build_ccache.sh
     else
 	chroot "$buildroot" su - -c "rm -f ~$builduser/bin/{gcc,g++,cc,c++}"
+	rm -f $buildroot/opt/ccache/bin/{gcc,g++,cc,c++}
     fi
     chroot "$buildroot" su - "$builduser" -c "ls -ld ~$builduser"
 }
@@ -275,10 +288,20 @@ setupicecream()
 	rm -rf $buildroot/var/run/icecream
 	return
     fi
+
+    if ! rpm -q --root $buildroot icecream >/dev/null 2>/dev/null; then
+	echo "*** icecream package not installed ***"
+	false
+	return
+    fi
     
     echo "using icecream with $icecream jobs"
 
-    echo 'export PATH=/opt/icecream/bin:$PATH' >> "$buildroot"/etc/profile.d/build_path.sh
+    if [ "$ccache" -ne 1 ]; then
+	echo 'export PATH=/opt/icecream/bin:$PATH' >> "$buildroot"/etc/profile.d/build_path.sh
+    else
+	echo 'export CCACHE_PATH=/opt/icecream/bin' >> "$buildroot"/etc/profile.d/build_path.sh
+    fi
     
     local icecc_vers=`cd $buildroot; ls -1 var/run/icecream/*.tar.bz2`
 
@@ -334,6 +357,8 @@ OPTIONS:
     --quilt		install quilt
     --no-init		do not install any packages, just start compiling
     --no-copy-repo	if called with repository, don't copy to repository
+    --target=X          use X as rpm target
+    --stage=X           use X as build stage (default: a)
     --help		this screen
 
 EOF
@@ -343,7 +368,7 @@ EOF
 parsecmdline()
 {
     shortopts=
-    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help
+    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,target:,stage:
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
 	 -n 'y2pmbuild' -- "$@"`
 
@@ -361,6 +386,8 @@ parsecmdline()
 	    --no-init) doinit=0 ; shift ;;
 	    --no-copy-repo) no_copy_repo=1 ; shift ;;
 	    --help) helpandquit ;;
+	    --target) target="$2"; shift 2 ;;
+	    --stage) rpmbuildstage="$2"; shift 2 ;;
 	    --) shift ; break ;;
 	    *) echo "error parsing command line options" ; exit 1 ;;
 	esac
@@ -454,7 +481,9 @@ for spec in "$specfiles"; do
     echo -----------------------------------------------------------------
     echo -----------------------------------------------------------------
 
-    rpmbuildstage=-ba
+    if [ -n "$target" ]; then
+	target="--target $target"
+    fi
 
     if [ "$bjobs" -gt 1 ]; then
 	bjobs="-D 'jobs $bjobs'"
@@ -462,7 +491,7 @@ for spec in "$specfiles"; do
 	bjobs=""
     fi
 
-    chroot "$buildroot" su - $builduser -c "$rpmbuild --nodeps $bjobs $rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
+    chroot "$buildroot" su - $builduser -c "$rpmbuild --nodeps $target $bjobs -b$rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
 
     success=1;
     echo -n "done $spec at " >> "$buildroot/.build.packages"
