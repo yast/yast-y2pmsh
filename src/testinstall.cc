@@ -332,6 +332,7 @@ void init_commands()
     newcmd("search",	search, 1, "search for packages");
     newcmd("whatrequires",	whatrequires, 1, "search for package requirement");
     newcmd("whatdependson",	whatdependson, 1, "search for depending packages");
+    newcmd("depends",	depends, 1, "search for depending packages");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
 //    newcmd("query",     query, 5, "query packagemanager");
     newcmd("source",	source, 0, "manage installation sources");
@@ -355,7 +356,7 @@ void init_commands()
     newcmd("testmediaorder", testmediaorder, 3, "test media order");
     newcmd("init",	init, 1, "initialize packagemanager (happens automatically if needed)");
     newcmd("help",	help, 0, "this screen");
-    newcmd("showproducts", products, 1, "show installed products");
+    newcmd("products", products, 1, "show installed products");
 #undef newcmd
 
 }

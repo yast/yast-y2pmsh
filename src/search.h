@@ -7,6 +7,7 @@
 int search(std::vector<std::string>& argv);
 int whatrequires(std::vector<std::string>& argv);
 int whatdependson(std::vector<std::string>& argv);
+int depends(std::vector<std::string>& argv);
 int newer(std::vector<std::string>& argv);
 //int query(std::vector<std::string>& argv);
 int alternatives(std::vector<std::string>& argv);

@@ -160,9 +160,9 @@ int whatdependson(vector<string>& argv)
 
 	if(!p) continue;
 
-	PMSolvable::PkgRelList_iterator it = p1->provides_begin();
+	PMSolvable::Provides_iterator it = p1->all_provides_begin();
 
-	for(; it != p1->provides_end(); ++it)
+	for(; it != p1->all_provides_end(); ++it)
 	{
 	    solvable_does_require(p, *it, &matches);
 	}
@@ -179,6 +179,67 @@ int whatdependson(vector<string>& argv)
 
     return 0;
 }
+
+int depends(vector<string>& argv)
+{
+    if(argv.size() < 2 || argv[1] == "--help")
+    {
+	HelpScreen h("depends");
+	h.additionalparams("STRING");
+//	h.Parameter(HelpScreenParameter("-a", "", "all matches"));
+	cout << h;
+	return 0;
+    }
+
+
+    string what(argv[1]);
+    list<matches_t> matches;
+    
+    PMSelectablePtr sp1 = Y2PM::packageManager().getItem(what);
+    if(!sp1)
+    {
+	cout << what << " not found" << endl;
+	return 1;
+    };
+
+    PMPackagePtr p1;
+    p1 = sp1->theObject();
+
+    if(!p1) return 1;
+
+    PMManager::PMSelectableVec::const_iterator it = Y2PM::packageManager().begin();
+    for(; it != Y2PM::packageManager().end(); ++it)
+    {
+	PMSelectablePtr sp = (*it);
+	if(!sp || sp == sp1) continue;
+
+	PMPackagePtr p;
+
+	p = sp->theObject();
+
+	if(!p) continue;
+
+	PMSolvable::PkgRelList_iterator it = p1->requires_begin();
+
+	for(; it != p1->requires_end(); ++it)
+	{
+	    if(p->doesProvide(*it))
+		matches.push_back(matches_t(p, *it));
+	}
+    }
+
+    for(list<matches_t>::iterator it = matches.begin();
+	it != matches.end(); ++it)
+    {
+	PMPackagePtr pp = it->pkg;
+	if(!pp) continue;
+
+	cout << pp->name() << " via provides " << it->rel << endl;
+    }
+
+    return 0;
+}
+
 
 #if 0
 int query(vector<string>& argv)
