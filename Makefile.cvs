@@ -8,11 +8,15 @@ configure: all
 	./configure --libdir=/usr/$(LIB) --prefix=/usr --sysconfdir=/etc
 
 all:
-	#y2tool y2autoconf
-	#y2tool y2automake
+	rm -rf libtecla
+	tar -xvzf package/libtecla-1.5.0.tar.gz
+	(cd libtecla && autoreconf --force --install && ./configure)
+	y2tool y2autoconf
+	y2tool y2automake
 	autoreconf --force --install
 
 install: configure
+	make -C libtecla
 	make
 	make install
 
