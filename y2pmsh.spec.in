@@ -29,7 +29,7 @@ export CFLAGS CXXFLAGS
 	--mandir=%{_mandir} \
 	--sysconfdir=%{_sysconfdir}
 make -C libtecla
-make
+make %{?jobs:-j%jobs}
 
 @INSTALL@
 %if %suse_version < 901

@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Oct 13 16:27:47 CEST 2004 - lnussel@suse.de
+
+- add sourceorder command for setting the installation order for
+  instalation sources
+- 2.11.1
+
+-------------------------------------------------------------------
 Tue Oct 12 17:15:21 CEST 2004 - lnussel@suse.de
 
 - use absolute path to useradd (#46580)

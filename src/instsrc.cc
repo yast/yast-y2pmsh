@@ -132,6 +132,22 @@ static int source_update(const vector<string>& argv, unsigned parampos)
     return 0;
 }
 
+static void showsource(constInstSrcPtr src)
+{
+    if(!src) return;
+    constInstSrcDescrPtr descr = src->descr();
+    bool on = false;
+    if(y2pmsh.initialized())
+	on = src->enabled();
+    else
+	on = descr->default_activate();
+
+    cout << stringutil::form("[%c] %s (%s)\n",
+	on?'x':' ',
+	descr->content_label().c_str(),
+	descr->url().asString().c_str());
+}
+
 int source(vector<string>& argv)
 {
     InstSrcManager::ISrcIdList isrclist;
@@ -363,17 +379,8 @@ int source(vector<string>& argv)
 	    for(InstSrcManager::ISrcIdList::iterator it = isrclist.begin();
 		it != isrclist.end(); ++it, count++)
 	    {
-		constInstSrcDescrPtr descr = (*it)->descr();
-		bool on = false;
-		if(y2pmsh.initialized())
-		    on = (*it)->enabled();
-		else
-		    on = descr->default_activate();
-		cout << stringutil::form("%d: [%c] %s (%s)\n",
-		    count,
-		    on?'x':' ',
-		    descr->content_label().c_str(),
-		    descr->url().asString().c_str());
+		cout << count << ": ";
+		showsource(*it);
 	    }
 	} break;
 	case src_update:
@@ -417,4 +424,65 @@ int _deletemediaatexit(vector<string>& argv)
 {
 	y2pmsh.DeleteMediaAtExit();
 	return 0;
+}
+
+int sourceorder( vector<string>& argv )
+{
+    vector<string>::iterator arg = argv.begin()+1;
+    for(;arg != argv.end() && (*arg)[0] == '-'; ++arg)
+    {
+	if(*arg == "--")
+	{
+	    ++arg;
+	    break;
+	}
+	else if(*arg == "-h" || *arg == "--help")
+	{
+	    HelpScreen h(argv[0]);
+	    h.optionaloptions(true);
+	    h.additionalparams("IDs");
+	    h.Parameter(HelpScreenParameter("-d", "--default", "set default order"));
+	    cout << h;
+	    return 0;
+	}
+	else if(*arg == "-d" || *arg == "--default")
+	{
+	    Y2PM::instSrcManager().setDefaultInstOrder();
+	    return 0;
+	}
+    }
+
+    if(arg != argv.end())
+    {
+	InstSrcManager::ISrcIdList isrclist;
+	InstSrcManager::InstOrder order;
+
+	Y2PM::instSrcManager().getSources(isrclist);
+
+	for(;arg != argv.end(); ++arg)
+	{
+	    unsigned num = atoi((*arg).c_str());
+	    unsigned i = 0;
+
+	    for(InstSrcManager::ISrcIdList::iterator it = isrclist.begin();
+		it != isrclist.end(); ++it, ++i)
+	    {
+		if(i == num)
+		    order.push_back((*it)->srcID());
+	    }
+	}
+	Y2PM::instSrcManager().setInstOrder(order);
+    }
+
+    {
+	const InstSrcManager::InstOrder &order = Y2PM::instSrcManager().instOrder();
+	cout << "Order:\n";
+	for(InstSrcManager::InstOrder::const_iterator it = order.begin();
+		it != order.end(); ++it)
+	{
+	    showsource(Y2PM::instSrcManager().getSourceByID(*it));
+	}
+	cout << endl;
+    }
+    return 0;
 }
