@@ -56,6 +56,7 @@
 #include "search.h"
 #include "summary.h"
 #include "distrocheck.h"
+#include "you.h"
 #include "callbacks.h"
 
 using namespace std;
@@ -403,6 +404,7 @@ void init_commands()
     newselcmd("selsolve",	solvesel, 1, "solve selection dependencies and apply state to packages");
     newcmd("_cdattach",	cdattach, 2, "cdattach");
     newcmd("distrocheck", distrocheck, 7, "find unsatisfied dependencies among candidates");
+// not useful    newcmd("you", onlineupdate, 1, "yast online update");
     newcmd("mem",	mem, 2, "memory statistics");
     newcmd("_testset",	testset, 2, "test memory consumption of PkgSet");
     newcmd("_testmediaorder", testmediaorder, 3, "test media order");

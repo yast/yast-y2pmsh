@@ -20,6 +20,9 @@ y2pmsh_SOURCES = \
 	summary.cc summary.h \
 	y2pmsh.cc y2pmsh.h \
 	distrocheck.cc distrocheck.h \
+	you.cc you.h \
+	tty.cc tty.h \
+	dotpainter.h \
 	variables.cc variables.h \
 	callbacks.cc callbacks.h
 
