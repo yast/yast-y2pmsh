@@ -1,6 +1,9 @@
 -------------------------------------------------------------------
-Wed May  5 11:38:39 CEST 2004 - lnussel@suse.de
+Thu May  6 15:10:45 CEST 2004 - lnussel@suse.de
 
+- set instlog to /var/log/YaST2/y2logRPM by default
+- add tab expansion and wildcards for selection commands
+- allow to install specific candiates by specifying the full version
 - fix remove percentage counter
 - fix state -c
 - show total percentage of packages installed/removed
