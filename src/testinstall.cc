@@ -125,10 +125,11 @@ static int solveandcommit(int ret, bool ignoreshellmode = false)
     return ret;
 }
 
-class CheckSkipPackage
+/** filters */
+class CheckSkipSelectable
 {
     public:
-	virtual ~CheckSkipPackage() {};
+	virtual ~CheckSkipSelectable() {};
 	virtual bool operator() (PMSelectablePtr p)
 	{
 	    return false;
@@ -136,10 +137,10 @@ class CheckSkipPackage
 };
 
 /** check whether package is installed */
-class SkipNotInstalledPackage : public CheckSkipPackage
+class SkipNotInstalled : public CheckSkipSelectable
 {
     public:
-	virtual ~SkipNotInstalledPackage() {};
+	virtual ~SkipNotInstalled() {};
 	// skip not installed packages
 	virtual bool operator() (PMSelectablePtr p)
 	{
@@ -150,8 +151,8 @@ class SkipNotInstalledPackage : public CheckSkipPackage
 	}
 };
 
-/** check whether installed package is older and can be upgraded */
-class SkipNoCandidates : public CheckSkipPackage
+/** check whether candidate is available */
+class SkipNoCandidates : public CheckSkipSelectable
 {
     public:
 	virtual ~SkipNoCandidates() {};
@@ -171,11 +172,11 @@ class SelectableCompleter : public CmdLineIface::Completer
     private:
 	string _name;
 	PMManager& _manager;
-	CheckSkipPackage _skip;
+	CheckSkipSelectable _skip;
     
     protected:
 	/** return package skip object */
-	virtual CheckSkipPackage& skipper()
+	virtual CheckSkipSelectable& skipper()
 	{
 	    return _skip;
 	}
@@ -199,6 +200,8 @@ class SelectableCompleter : public CmdLineIface::Completer
 		if(skipper()(*it))
 		    continue;
 
+		// we cannot use fnmatch here because tecla only allows to
+		// append stuff to words rather than replacing them completely
 		string name = (*it)->name();
 		if(name.substr(0, word.length()) == word)
 		{
@@ -210,63 +213,43 @@ class SelectableCompleter : public CmdLineIface::Completer
 	}
 };
 
-class PackageCompleter : public SelectableCompleter
-{
-    public:
-	PackageCompleter(const string& name) : SelectableCompleter(name, Y2PM::packageManager()) {}
-	virtual ~PackageCompleter()
-	{
-	}
-};
-
-class InstalledPackageCompleter : public SelectableCompleter
+class InstalledSelectableCompleter : public SelectableCompleter
 {
     private:
-	SkipNotInstalledPackage _skip;
+	SkipNotInstalled _skip;
     
     protected:
-	/** return package skip object */
-	virtual CheckSkipPackage& skipper()
+	/** return Selectable skip object */
+	virtual CheckSkipSelectable& skipper()
 	{
 	    return _skip;
 	}
 
     public:
-	InstalledPackageCompleter(const string& name) : SelectableCompleter(name, Y2PM::packageManager()) {}
-	virtual ~InstalledPackageCompleter()
+	InstalledSelectableCompleter(const string& name, PMManager& manager) : SelectableCompleter(name, manager) {}
+	virtual ~InstalledSelectableCompleter()
 	{
 	}
 };
 
-class CandidatePackageCompleter : public SelectableCompleter
+class CandidateSelectableCompleter : public SelectableCompleter
 {
     private:
 	SkipNoCandidates _skip;
     
     protected:
-	/** return package skip object */
-	virtual CheckSkipPackage& skipper()
+	/** return Selectable skip object */
+	virtual CheckSkipSelectable& skipper()
 	{
 	    return _skip;
 	}
 
     public:
-	CandidatePackageCompleter(const string& name) : SelectableCompleter(name, Y2PM::packageManager()) {}
-	virtual ~CandidatePackageCompleter()
+	CandidateSelectableCompleter(const string& name, PMManager& manager) : SelectableCompleter(name, manager) {}
+	virtual ~CandidateSelectableCompleter()
 	{
 	}
 };
-
-
-class SelectionCompleter : public SelectableCompleter
-{
-    public:
-	SelectionCompleter(const string& name) : SelectableCompleter(name, Y2PM::selectionManager()) {}
-	virtual ~SelectionCompleter()
-	{
-	}
-};
-
 
 /** wildcard expansion */
 class SelectableWordExpander : public Command::WordExpander
@@ -283,11 +266,11 @@ class SelectableWordExpander : public Command::WordExpander
 	    private:
 		const string& _pattern;
 		Words& _words;
-		CheckSkipPackage& _skip;
+		CheckSkipSelectable& _skip;
 		bool& _havematch;
 
 	    public:
-		MatchPackage(const string& pattern, Words& words, CheckSkipPackage& skip, bool& havematch)
+		MatchPackage(const string& pattern, Words& words, CheckSkipSelectable& skip, bool& havematch)
 		    : _pattern(pattern), _words(words), _skip(skip), _havematch(havematch)
 		{
 		}
@@ -311,11 +294,11 @@ class SelectableWordExpander : public Command::WordExpander
 	{
 	    private:
 		Words& _words;
-		CheckSkipPackage& _skip;
+		CheckSkipSelectable& _skip;
 		PMManager& _manager;
 		
 	    public:
-		ExpandWord(Words& words, CheckSkipPackage& skip, PMManager& manager)
+		ExpandWord(Words& words, CheckSkipSelectable& skip, PMManager& manager)
 		    : _words(words), _skip(skip), _manager(manager) {};
 		void operator()(const std::string& word)
 		{
@@ -330,9 +313,9 @@ class SelectableWordExpander : public Command::WordExpander
 		}
 	};
 
-	CheckSkipPackage _skip;
+	CheckSkipSelectable _skip;
 	/** return package skip object */
-	virtual CheckSkipPackage& skipper()
+	virtual CheckSkipSelectable& skipper()
 	{
 	    return _skip;
 	}
@@ -351,7 +334,7 @@ class SelectableWordExpander : public Command::WordExpander
 		return words;
 
 	    out.push_back(*words.begin());
-	    CheckSkipPackage& skip = skipper();
+	    CheckSkipSelectable& skip = skipper();
 	    for_each(words.begin()+1, words.end(), ExpandWord(out, skip, _manager));
 
 	    return out;
@@ -362,7 +345,7 @@ class CandidateSelectableWordExpander : public SelectableWordExpander
 {
     protected:
 	SkipNoCandidates _skip;
-	virtual CheckSkipPackage& skipper()
+	virtual CheckSkipSelectable& skipper()
 	{
 	    return _skip;
 	}
@@ -374,8 +357,8 @@ class CandidateSelectableWordExpander : public SelectableWordExpander
 class InstalledSelectableWordExpander : public SelectableWordExpander
 {
     protected:
-	SkipNotInstalledPackage _skip;
-	virtual CheckSkipPackage& skipper()
+	SkipNotInstalled _skip;
+	virtual CheckSkipSelectable& skipper()
 	{
 	    return _skip;
 	}
@@ -393,28 +376,30 @@ void init_commands()
     newcmd(a,b,c,d);
 #define newpkgcmdC(a,b,c,d) \
     newpkgcmd(a,b,c,d); \
-    y2pmsh.cli().registerCompleter(new CandidatePackageCompleter(a)); \
+    y2pmsh.cli().registerCompleter(new CandidateSelectableCompleter(a, Y2PM::packageManager())); \
     y2pmsh.cmd[a]->Expander(new CandidateSelectableWordExpander(Y2PM::packageManager()));
 #define newpkgcmdI(a,b,c,d) \
     newpkgcmd(a,b,c,d); \
-    y2pmsh.cli().registerCompleter(new InstalledPackageCompleter(a)); \
+    y2pmsh.cli().registerCompleter(new InstalledSelectableCompleter(a, Y2PM::packageManager())); \
     y2pmsh.cmd[a]->Expander(new InstalledSelectableWordExpander(Y2PM::packageManager()));
 #define newpkgcmdA(a,b,c,d) \
     newpkgcmd(a,b,c,d); \
-    y2pmsh.cli().registerCompleter(new PackageCompleter(a)); \
+    y2pmsh.cli().registerCompleter(new SelectableCompleter(a, Y2PM::packageManager())); \
     y2pmsh.cmd[a]->Expander(new SelectableWordExpander(Y2PM::packageManager()));
 
 #define newselcmd(a,b,c,d) \
-    newcmd(a,b,c,d); \
-    y2pmsh.cli().registerCompleter(new SelectionCompleter(a));
+    newcmd(a,b,c,d);
 #define newselcmdC(a,b,c,d) \
     newselcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new CandidateSelectableCompleter(a, Y2PM::selectionManager())); \
     y2pmsh.cmd[a]->Expander(new CandidateSelectableWordExpander(Y2PM::selectionManager()));
 #define newselcmdI(a,b,c,d) \
     newselcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new InstalledSelectableCompleter(a, Y2PM::selectionManager())); \
     y2pmsh.cmd[a]->Expander(new InstalledSelectableWordExpander(Y2PM::selectionManager()));
 #define newselcmdA(a,b,c,d) \
     newselcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new SelectableCompleter(a, Y2PM::selectionManager())); \
     y2pmsh.cmd[a]->Expander(new SelectableWordExpander(Y2PM::selectionManager()));
 
 // flags: 1 = need init, 2 = hidden, 4 = advanced
