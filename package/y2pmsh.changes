@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Fri May 28 12:31:40 CEST 2004 - lnussel@suse.de
+
+- implemented view/install/remove products
+- fix instlog
+- show appl and auto state differently
+- change some progress callbacks
+
+-------------------------------------------------------------------
 Thu May  6 15:10:45 CEST 2004 - lnussel@suse.de
 
 - set instlog to /var/log/YaST2/y2logRPM by default
