@@ -318,8 +318,19 @@ fi
 
 mkdir -p "$buildroot"
 
+if [ ! -e "$buildroot" ]; then
+    echo "couldn't create $buildroot" >&2
+    exit 1
+elif [ ! -d "$buildroot" ]; then
+    echo "$buildroot is no directory" >&2
+    exit 1
+elif [ ! -O "$buildroot" ]; then
+    echo "$buildroot is not owned by `id -nu`" >&2
+    exit 1
+fi
+
 if [ -e "$buildroot/.locked" ]; then
-    echo -n "$buildroot locked by pid " >&2
+    echo -n "$buildroot already locked by pid " >&2
     cat "$buildroot/.locked" >&2
     exit 1
 fi
