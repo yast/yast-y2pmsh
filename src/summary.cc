@@ -16,7 +16,8 @@ using namespace std;
 static const char* statestr[] = { "@i", "--", " -", " >", " +", "a-", "a>", "a+", " i", "  ", "???", "s-", "s>", "s+" };
 
 PrintSelectable::Flags::Flags()
-    : onlyinstalled(false), onlychanged(false), summary(false), version(true)
+    : onlyinstalled(false), onlychanged(false), summary(false), version(true),
+    byauto(false), byappl(false), byuser(false)
 {
 }
 
@@ -31,10 +32,20 @@ void PrintSelectable::operator()(PMSelectablePtr sptr)
     if(_flags.onlyinstalled && !sptr->has_installed())
 	return;
 
-    if(_flags.onlychanged && !sptr->to_modify())
-	return;
+    if(_flags.onlychanged)
+    {
+	bool pass = false;
+	if(_flags.byauto && sptr->by_auto())
+	    pass = true;
+	if(_flags.byappl && sptr->by_appl())
+	    pass = true;
+	if(_flags.byuser && sptr->by_user())
+	    pass = true;
 
-    
+	if(!pass)
+	    return;
+    }
+
     unsigned index =  PMSelectable::S_NoInst + 1; // -> ???
 
     switch(s)
@@ -159,6 +170,9 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
 	    HelpScreen h(argv[0]);
 	    h.Parameter(HelpScreenParameter("-a", "--all", "show all objects"));
 	    h.Parameter(HelpScreenParameter("-c", "--changed", "show only objects with changes"));
+	    h.Parameter(HelpScreenParameter("", "--auto", "together with -c: only auto state"));
+	    h.Parameter(HelpScreenParameter("", "--appl", "together with -c: only appl (selection) state"));
+	    h.Parameter(HelpScreenParameter("", "--user", "together with -c: only user state"));
 	    h.Parameter(HelpScreenParameter("-t", "--taboo", "set package to taboo/protected"));
 	    h.Parameter(HelpScreenParameter("-T", "--untaboo", "reset taboo/protected state"));
 	    cout << h;
@@ -183,6 +197,21 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
 	    {
 		flags.onlychanged = true;
 		flags.onlyinstalled = false;
+		continue;
+	    }
+	    else if(pkg == "--auto")
+	    {
+		flags.byauto = true;
+		continue;
+	    }
+	    else if(pkg == "--appl")
+	    {
+		flags.byappl = true;
+		continue;
+	    }
+	    else if(pkg == "--user")
+	    {
+		flags.byuser = true;
 		continue;
 	    }
 	    else if(pkg == "-t" || pkg == "--taboo")
@@ -211,6 +240,16 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
     {
 	begin = manager.begin();
 	end = manager.end();
+    }
+
+    if(flags.onlychanged
+	&& !flags.byauto
+	&& !flags.byappl
+	&& !flags.byuser)
+    {
+	flags.byauto = true;
+	flags.byappl = true;
+	flags.byuser = true;
     }
 
     if( taboo != NONE)
@@ -270,10 +309,10 @@ int summary(vector<string>& argv)
 	}
     }
 
-    cout << "Packages to install: " << numinstall << endl;
-    cout << "Packages to delete:  " << numdelete << endl;
-    cout << "Download size:       " << sizefetch << endl;
-    cout << "Needed Space:        " << sizeinstall << endl;
+    cout << "Packages to install:  " << numinstall << endl;
+    cout << "Packages to delete:   " << numdelete << endl;
+    cout << "Download size:        " << sizefetch << endl;
+    cout << "Needed Space:         " << sizeinstall << endl;
 
     return 0;
 }

@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Wed Sep 29 11:52:25 CEST 2004 - lnussel@suse.de
+
+- add --no-copy-repo parameter to y2pmbuild
+- add some options to 'state' function for finer grained filtering
+- add new function 'why' which shows the solve results for specified
+  packages
+- fix saving of source rank when updating installation sources
+- fix y2pmbuild using build-root. instead of build-root.root (#45977)
+- 2.10.1
+
+-------------------------------------------------------------------
 Fri Sep 10 17:04:36 CEST 2004 - lnussel@suse.de
 
 - move class for painting progress dots in separate file

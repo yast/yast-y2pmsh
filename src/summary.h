@@ -15,6 +15,9 @@ class PrintSelectable
 		bool onlychanged : 1;
 		bool summary : 1;
 		bool version : 1;
+		bool byauto : 1; // only evaluated when onlychanged == true
+		bool byappl : 1; // only evaluated when onlychanged == true
+		bool byuser : 1; // only evaluated when onlychanged == true
 
 		Flags();
 	};

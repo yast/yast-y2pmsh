@@ -23,7 +23,7 @@ fi
 
 if [ -z "$buildroot" ]; then
     user=`id -un`
-    [ "$user" = root -a "$SUDO_USER" != root ] && user="$SUDO_USER"
+    [ "$user" = root -a -n "$SUDO_USER" -a "$SUDO_USER" != root ] && user="$SUDO_USER"
     buildroot="/var/tmp/build-root.$user"
     [ -n "$BUILD_DIST" ] && buildroot="$buildroot.$BUILD_DIST"
 fi
@@ -101,7 +101,7 @@ copyfilestorepository()
     find "$buildroot/usr/src/packages/RPMS" -type f -printf '\033[1m%p\033[m\n'
     find "$buildroot/usr/src/packages/SRPMS" -type f
 
-    [ "$have_repo" != 1 ] && return 0
+    [ "$have_repo" != 1 -o -n "$no_copy_repo" ] && return 0
 
     rpmdir="$buildroot"/usr/src/packages/RPMS
     while read rpm; do
@@ -284,7 +284,7 @@ mountfilesystems()
 parsecmdline()
 {
     shortopts=
-    longopts=ccache,root,no-init,quilt
+    longopts=ccache,root,no-init,quilt,no-copy-repo
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
 	 -n 'y2pmbuild' -- "$@"`
 
@@ -298,6 +298,7 @@ parsecmdline()
 	    --quilt) quilt=1 ; shift ;;
 	    --root) builduser=root ; shift ;;
 	    --no-init) doinit=0 ; shift ;;
+	    --no-copy-repo) no_copy_repo=1 ; shift ;;
 	    --) shift ; break ;;
 	    *) echo "error parsing command line options" ; exit 1 ;;
 	esac
