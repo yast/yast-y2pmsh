@@ -367,3 +367,9 @@ int source(vector<string>& argv)
     }
     return ret;
 }
+
+int _deletemediaatexit(vector<string>& argv)
+{
+	y2pmsh.DeleteMediaAtExit();
+	return 0;
+}

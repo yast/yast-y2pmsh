@@ -1,6 +1,7 @@
 #include <fstream>
 
 #include <Y2PM.h>
+#include <y2pm/InstSrcManager.h>
 #include <y2pm/InstTarget.h>
 #include <y2pm/InstTargetError.h>
 
@@ -190,6 +191,79 @@ void Y2PMSH::setenv(bool instsys)
 	::setenv("YAST_IS_RUNNING","instsys",1);
     else
 	::setenv("YAST_IS_RUNNING","yes",1);
+}
+
+class QuitHandler
+{
+    public:
+	virtual void quit() {};
+};
+
+class MediaReleaseQuitHandler : public QuitHandler
+{
+    public:
+	virtual void quit()
+	{
+	    PMError err = Y2PM::instSrcManager().releaseAllMedia();
+	    if(err)
+		cerr << "Failed to release media: " << err << endl;
+	}
+};
+
+class DeleteMediaQuitHandler : public QuitHandler
+{
+    public:
+	virtual void quit()
+	{
+	    InstSrcManager::ISrcIdList isrclist;
+
+	    Y2PM::instSrcManager().getSources(isrclist, true);
+
+	    cout << "clean up sources" << endl;
+	    for(InstSrcManager::ISrcIdList::iterator it = isrclist.begin();
+		it != isrclist.end(); ++it)
+	    {
+		Y2PM::instSrcManager().deleteSource(*it);
+	    }
+	}
+};
+
+bool Y2PMSH::ReleaseMediaAtExit()
+{
+    if(!_releasemediainstalled)
+    {
+	_releasemediainstalled = true;
+	addQuitHandler(new MediaReleaseQuitHandler());
+    }
+
+    return _releasemediainstalled;
+}
+
+bool Y2PMSH::DeleteMediaAtExit()
+{
+    if(!_mediadeleteinstalled)
+    {
+	_mediadeleteinstalled = true;
+	addQuitHandler(new DeleteMediaQuitHandler());
+    }
+
+    return _mediadeleteinstalled;
+}
+
+void Y2PMSH::addQuitHandler(QuitHandler* q)
+{
+    _quithandlers.push_back(q);
+}
+
+void Y2PMSH::quit()
+{
+    for(QuitHandlerList::iterator it = _quithandlers.begin();
+	it != _quithandlers.end(); ++it)
+    {
+	(*it)->quit();
+	delete(*it);
+    }
+    _quithandlers.clear();
 }
 
 CmdLineIface& Y2PMSH::cli(void)

@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <malloc.h>
 #include <locale.h>
+#include <signal.h>
 
 #include "variable.h"
 #include "variables.h"
@@ -365,6 +366,7 @@ void init_commands()
 //    newcmd("query",     query, 5, "query packagemanager");
     newcmd("source",	source, 0, "manage installation sources");
     newcmd("enablesources", enablesources, 3, "enable all sources");
+    newcmd("_deletemediaatexit", _deletemediaatexit, 3, "delete all medias at exit");
     newcmd("buildsolve",	buildsolve, 3, "solve dependencies like the build script");
     newcmd("rebuilddb",	rebuilddb, 3, "rebuild rpm db");
     newcmd("df",		df, 1, "display disk space forecast");
@@ -431,26 +433,6 @@ int rebuilddb(vector<string>& argv)
 }
 
 /********************/
-
-static void mediareleasefunc()
-{
-    PMError err = Y2PM::instSrcManager().releaseAllMedia();
-    if(err)
-	cerr << "Failed to release media: " << err << endl;
-}
-
-bool Y2PMSH::ReleaseMediaAtExit()
-{
-    if(!_releasemediainstalled)
-    {
-	if(!atexit(mediareleasefunc))
-	{
-	    _releasemediainstalled = true;
-	}
-    }
-
-    return _releasemediainstalled;
-}
 
 int help(vector<string>& argv)
 {
@@ -964,6 +946,20 @@ int products( vector<string>& )
     return 0;
 }
 
+void y2pmshquitsignalhandler(int sig)
+{
+    y2pmsh.quit();
+    exit(sig);
+}
+
+void installsignalhandlers(void)
+{
+    struct sigaction act = {0};
+    act.sa_handler = y2pmshquitsignalhandler;
+    ::sigaction(SIGINT, &act, NULL);
+    ::sigaction(SIGHUP, &act, NULL);
+}
+
 int main( int argc, char *argv[] )
 {
     bool cliok = true;
@@ -993,6 +989,8 @@ int main( int argc, char *argv[] )
     {
 	cout << "type help for help, ^D to exit" << endl << endl;
     }
+
+    installsignalhandlers();
 
     // TODO: write real command line parser
     while( cliok && _keep_running)
@@ -1105,6 +1103,8 @@ int main( int argc, char *argv[] )
 
     if(y2pmsh.shellmode())
 	y2pmsh.cli().saveHistory();
+
+    y2pmsh.quit();
 
     return mainret;
 }

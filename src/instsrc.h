@@ -6,5 +6,6 @@
 
 int source(std::vector<std::string>& argv);
 int enablesources(std::vector<std::string>& argv);
+int _deletemediaatexit(std::vector<std::string>& argv);
 
 #endif
