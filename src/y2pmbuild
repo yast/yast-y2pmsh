@@ -342,7 +342,8 @@ mountfilesystems()
     mkdir -p $buildroot/proc
     mkdir -p $buildroot/dev/pts
     pwd
-    mount -oro -n -tproc proc $buildroot/proc
+    # -oro doesn't have the desired effect anyways ...
+    mount -n -tproc proc $buildroot/proc
     mount -n -tdevpts none $buildroot/dev/pts
 }
 

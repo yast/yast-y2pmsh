@@ -1,7 +1,7 @@
 @HEADER-COMMENT@
 
 # norootforbuild
-# neededforbuild  curl gpp libstdc++-devel liby2util liby2util-devel openslp openslp-devel yast2-packagemanager yast2-packagemanager-devel
+# neededforbuild  curl gpp libstdc++-devel liby2util liby2util-devel openslp openslp-devel yast2-packagemanager yast2-packagemanager-devel pkgconfig
 
 @HEADER@
 Summary:      Shell interface for the YaST2 packagemanager
