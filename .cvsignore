@@ -15,3 +15,4 @@ config.log
 stamp-h1
 config.status
 config.h
+config.h.in
