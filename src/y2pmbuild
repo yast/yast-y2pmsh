@@ -87,12 +87,11 @@ addsourcesfromrepository()
 {
     [ "$have_repo" != 1 ] && return 0
 
-    echo "set cachetodisk false"
+    echo "set runningfromsystem false"
     echo "_deletemediaatexit"
     echo "set autosource false"
 
     if [ -n "$url_repository" ]; then
-	# doesn't work yet, can't add plainsources with cachetodisk false
 	echo "source -a $url_repository"
     fi
 

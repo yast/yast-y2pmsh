@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Mar 30 13:55:23 CEST 2005 - lnussel@suse.de
+
+- don't use cacheToRamdisk(false) (#74618)
+- 2.11.7
+
+-------------------------------------------------------------------
 Mon Mar  7 12:13:58 CET 2005 - lnussel@suse.de
 
 - add y2pmbuild config file for 9.3 (#71026)
