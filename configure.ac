@@ -41,7 +41,7 @@ AC_TYPE_SIZE_T
 AC_CHECK_FUNCS([atexit setenv setlocale strcasecmp strdup strerror strtol])
 
 if test ! -d $tecladir; then
-	AC_MSG_ERROR([need libtecla 1.4 (http://www.astro.caltech.edu/~mcs/tecla/index.html) to compile])
+	AC_MSG_ERROR([need libtecla (http://www.astro.caltech.edu/~mcs/tecla/index.html) to compile])
 fi
 
 AC_CONFIG_FILES([Makefile config/Makefile patches-9.0/Makefile src/Makefile])
