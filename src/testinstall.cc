@@ -313,6 +313,7 @@ class PackageCompleter : public CmdLineIface::Completer
 	string _name;
     public:
 	PackageCompleter(const string name) : _name(name) {};
+	virtual ~PackageCompleter() {};
 	virtual const std::string command() { return _name; };
 	virtual std::vector<std::string> completions(const std::string word)
 	{
