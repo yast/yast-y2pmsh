@@ -188,4 +188,73 @@ int summary(vector<string>& argv)
     return 0;
 }
 
+int depstats(vector<string>& argv)
+{
+    bool installed = false;
+    if(argv.size() > 1)
+    {
+	if(argv[1] == "--help")
+	{
+	    HelpScreen h(argv[0]);
+	    h.Parameter(HelpScreenParameter("-i", "", "count installed instead of candidates"));
+	    cout << h;
+	    return 0;
+	}
+	if(argv[1] == "-i")
+	    installed = true;
+    }
+
+
+    PMManager& manager = Y2PM::packageManager();
+    PMManager::PMSelectableVec::const_iterator it, end;
+
+    unsigned packages = 0;
+    unsigned provs = 0;
+    unsigned reqs = 0;
+
+    unsigned maxprovs = 0;
+    unsigned maxreqs = 0;
+    PkgName topprov;
+    PkgName topreq;
+
+    it = manager.begin();
+    end = manager.end();
+    for (;it!=end;++it)
+    {
+	PMSelectablePtr sel(*it);
+	if(!sel) continue;
+
+	PMPackagePtr pkg = NULL;
+	if(installed)
+	    pkg = sel->installedObj();
+	else
+	    pkg = sel->candidateObj();
+
+	if(!pkg) continue;
+
+	++packages;
+	unsigned prov = pkg->provides().size();
+	unsigned req = pkg->requires().size();
+	provs += prov;
+	reqs += req;
+
+	if(prov > maxprovs)
+	{
+		maxprovs = prov;
+		topprov = pkg->name();
+	}
+	if(req > maxreqs)
+	{
+		maxreqs = req;
+		topreq = pkg->name();
+	}
+
+    }
+
+    cout << "Packages: " << packages << endl;
+    cout << stringutil::form("Provides: %6d / %6.2f avg, top: %s (%d provides)", provs, (double)provs/packages, topprov->c_str(), maxprovs) << endl;
+    cout << stringutil::form("Requires: %6d / %6.2f avg, top: %s (%d requires)", reqs, (double)reqs/packages, topreq->c_str(), maxreqs) << endl;
+
+    return 0;
+}
 

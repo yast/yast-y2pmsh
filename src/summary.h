@@ -7,5 +7,6 @@
 int state(std::vector<std::string>& argv);
 int selstate(std::vector<std::string>& argv);
 int summary(std::vector<std::string>& argv);
+int depstats(std::vector<std::string>& argv);
 
 #endif
