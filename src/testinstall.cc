@@ -50,12 +50,6 @@
 #include "helpscreen.h"
 #include "solverresults.h"
 #include "build.h"
-#include "cmdlineiface.h"
-#ifdef USEREADLINE
-#include "cmdlineiface_readline.h"
-#elif defined(USETECLA)
-#include "cmdlineiface_tecla.h"
-#endif
 #include "instsrc.h"
 #include "search.h"
 #include "summary.h"
@@ -313,27 +307,56 @@ static void sourcechangecallback(InstSrcManager::ISrcId srcid, int medianr, void
 }
 #endif
 
+class PackageCompleter : public CmdLineIface::Completer
+{
+    private:
+	string _name;
+    public:
+	PackageCompleter(const string name) : _name(name) {};
+	virtual const std::string command() { return _name; };
+	virtual std::vector<std::string> completions(const std::string word)
+	{
+	    vector<string> v;
+	    if(!y2pmsh.initialized())
+		return v;
+
+	    PMManager::PMSelectableVec::iterator it;
+
+	    for (it = Y2PM::packageManager().begin();
+		it != Y2PM::packageManager().end(); ++it)
+	    {
+		string name = (*it)->name();
+		if(name.substr(0, word.length()) == word)
+		{
+		    v.push_back(name);
+		}
+	    }
+
+	    return v;
+	}
+};
 
 void init_commands()
 {
 #define newcmd(a,b,c,d) y2pmsh.cmd.add(new Command(a,b,c,d))
+#define newpkgcmd(a,b,c,d) newcmd(a,b,c,d); y2pmsh.cli().registerCompleter(new PackageCompleter(a));
 // flags: 1 = need init, 2 = hidden, 4 = advanced
-    newcmd("install",	install, 1, "select packages for installation");
-    newcmd("deselect",	deselect, 1, "deselect packages marked for installation/removal");
-    newcmd("remove",	remove, 1, "select package for removal");
+    newpkgcmd("install",	install, 1, "select packages for installation");
+    newpkgcmd("deselect",	deselect, 1, "deselect packages marked for installation/removal");
+    newpkgcmd("remove",	remove, 1, "select package for removal");
     newcmd("solve",	solve, 1, "solve dependencies");
-    newcmd("state",	state, 1, "show state of package(s)");
+    newpkgcmd("state",	state, 1, "show state of package(s)");
     newcmd("newer",	newer, 1, "show packages with newer candiate available");
     newcmd("rpminstall",	rpminstall, 3, "install rpm files");
     newcmd("consistent",	consistent, 3, "check consistency");
     newcmd("set",		varset, 0, "set or show variable");
     newcmd("unset",	varunset, 0, "unset variable");
-    newcmd("show",	show, 1, "show package info");
+    newpkgcmd("show",	show, 1, "show package info");
     newcmd("search",	search, 1, "search for packages");
     newcmd("whatprovides",	whatprovides, 1, "search for package provides");
     newcmd("whatrequires",	whatrequires, 1, "search for package requirement");
-    newcmd("whatdependson",	whatdependson, 1, "search for depending packages");
-    newcmd("depends",	depends, 1, "search for depending packages");
+    newpkgcmd("whatdependson",	whatdependson, 1, "search for depending packages");
+    newpkgcmd("depends",	depends, 1, "search for depending packages");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
 //    newcmd("query",     query, 5, "query packagemanager");
     newcmd("source",	source, 0, "manage installation sources");
@@ -358,8 +381,8 @@ void init_commands()
     newcmd("init",	init, 1, "initialize packagemanager (happens automatically if needed)");
     newcmd("help",	help, 0, "this screen");
     newcmd("products", products, 1, "show installed products");
+#undef newpkgcmd
 #undef newcmd
-
 }
 
 int df(vector<string>& argv)
@@ -937,27 +960,12 @@ int products( vector<string>& )
 
 int main( int argc, char *argv[] )
 {
-    const char appname[] = "y2pmsh";
-
-    CmdLineIface* cli = NULL;
-
     bool cliok = true;
 
     int mainret = 0;
 
     if(argc > 1)
 	y2pmsh.shellmode(false);
-
-    if(1)
-    {
-#ifdef USEREADLINE
-	cli = new CmdLineIfaceRL(appname);
-#elif defined(USETECLA)
-	cli = new CmdLineIfaceTecla(appname);
-#else
-	cli = new CmdLineIface(appname);
-#endif
-    }
 
     RpmDbCallbacks::installPkgReport.redirectTo(installpkgcallback);
     RpmDbCallbacks::rebuildDbReport.redirectTo(rebuilddbcallback);
@@ -989,9 +997,9 @@ int main( int argc, char *argv[] )
 	{
 	    string inputstr;
 
-	    cli->lastRetCode(mainret);
+	    y2pmsh.cli().lastRetCode(mainret);
 
-	    cliok = cli->getLine(inputstr);
+	    cliok = y2pmsh.cli().getLine(inputstr);
 
 	    if(!cliok) break;
 
@@ -1000,7 +1008,7 @@ int main( int argc, char *argv[] )
 	    if(inputstr.empty())
 		continue;
 
-	    cli->addToHistory(inputstr);
+	    y2pmsh.cli().addToHistory(inputstr);
 
 	    vector<string> tmp;
 /*
@@ -1026,7 +1034,7 @@ int main( int argc, char *argv[] )
 		cmds.push_back(argv);
 	    }
 */
-	    cli->parsewords(inputstr, tmp);
+	    y2pmsh.cli().parsewords(inputstr, tmp);
 	    cmds.push_back(tmp);
 	}
 	else
@@ -1090,7 +1098,7 @@ int main( int argc, char *argv[] )
     cout << endl;
 
     if(y2pmsh.shellmode())
-	cli->saveHistory();
+	y2pmsh.cli().saveHistory();
 
     return mainret;
 }

@@ -24,6 +24,11 @@ CmdLineIface::CmdLineIface(const string& name) : _appname(name), _lastretcode(0)
 
 CmdLineIface::~CmdLineIface()
 {
+    std::map<std::string, Completer*>::iterator it = completors.begin();
+    for(; it != completors.end(); ++it)
+    {
+	delete it->second;
+    }
 }
 
 bool CmdLineIface::getLine(string& line)
@@ -217,6 +222,35 @@ static void parsecmdline(const char* line, void (*wordcb)(string, void*), void* 
     {
 	wordcb(word, data);
     }
+}
+
+void CmdLineIface::registerCompleter(Completer* c)
+{
+    if(!c) return;
+    completors[c->command()] = c;
+}
+
+std::vector<std::string> CmdLineIface::completeCommand(const std::string& command, const std::string& word)
+{
+    std::map<std::string, Completer*>::iterator it = completors.find(command);
+    if( it != completors.end())
+    {
+	Completer* c = it->second;
+	if(c)
+	    return c->completions(word);
+    }
+
+    return vector<string>();
+}
+
+const std::string CmdLineIface::Completer::command()
+{
+    return string();
+}
+
+std::vector<std::string> CmdLineIface::Completer::completions(const std::string word)
+{
+    return vector<string>();
 }
 
 // vim: sw=4

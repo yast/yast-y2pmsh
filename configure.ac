@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(y2pmsh, 0.3, ludwig.nussel@suse.de)
+AC_INIT(y2pmsh, 0.4, ludwig.nussel@suse.de)
 AC_CONFIG_SRCDIR([src/build.cc])
 
 AM_INIT_AUTOMAKE
