@@ -265,10 +265,13 @@ setupccache()
 	    for i in gcc g++ cc c++; do
 #		ln -sf /usr/bin/ccache $buildroot/opt/ccache/bin/$i
 		rm -f $buildroot/opt/ccache/bin/$i
+		test -e $buildroot/usr/bin/$i || continue
 		echo '#! /bin/sh' > $buildroot/opt/ccache/bin/$i
+		echo "test -e /usr/bin/$i || exit 1" > $buildroot/opt/ccache/bin/$i
 	        echo 'export PATH=/opt/icecream/bin:/usr/bin:$PATH' >> $buildroot/opt/ccache/bin/$i
 		echo "ccache $i \"\$@\"" >> $buildroot/opt/ccache/bin/$i
 		chmod 755 $buildroot/opt/ccache/bin/$i
+		echo "Installed ccache wrapper as $buildroot/opt/ccache/bin/$i"
 	    done
 	fi
 	mkdir -p "$buildroot"/.ccache
@@ -341,6 +344,15 @@ mountfilesystems()
     pwd
     mount -oro -n -tproc proc $buildroot/proc
     mount -n -tdevpts none $buildroot/dev/pts
+}
+
+setmemorylimit()
+{
+    local mem
+    mem="`stat -c '%b*%B/1024*2/3' /proc/kcore`"
+    eval "mem=\$(($mem))"
+    ulimit -v $mem
+    echo "Memory limit set to ${mem}KB"
 }
 
 helpandquit()
@@ -473,6 +485,8 @@ for spec in "$specfiles"; do
     setupccache
 
     determinerpmversion
+
+    setmemorylimit
 
     echo sync ... 
     sync
