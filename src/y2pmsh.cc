@@ -149,17 +149,16 @@ bool Y2PMSH::initialized()
 
 bool Y2PMSH::targetinit(string root)
 {
-    cout << "reading installed packages ..." << flush;
+    cout << "initializing target ..." << endl;
 
     if(root.empty())
 	root = variables["root"].getString();
 	
     PMError err = Y2PM::instTargetInit(root);
 
-    cout << err << endl;
-
-    if( err != InstTargetError::E_ok )
+    if( err )
     {
+	cout << "Error initializing target: " << err << endl;
 	_initialized = false;
 	return false;
     }

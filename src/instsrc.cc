@@ -15,7 +15,7 @@ int enablesources(vector<string>& argv)
 {
     InstSrcManager::ISrcIdList isrclist;
 
-    cout << "reading available packages ..." << endl;
+    cout << "initializing installation sources ..." << endl;
 
     Y2PM::instSrcManager().getSources(isrclist);
 

@@ -20,7 +20,8 @@ y2pmsh_SOURCES = \
 	summary.cc summary.h \
 	y2pmsh.cc y2pmsh.h \
 	distrocheck.cc distrocheck.h \
-	variables.cc variables.h
+	variables.cc variables.h \
+	callbacks.cc callbacks.h
 
 y2pmsh_LDADD=$(teclalibs) $(y2pmlibs)
 

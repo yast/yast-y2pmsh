@@ -37,10 +37,6 @@
 #include <y2pm/PMPackageManager.h>
 #include <y2pm/PMSelectionManager.h>
 #include <y2pm/InstSrcDescr.h>
-#include <y2pm/RpmDbCallbacks.h>
-#ifndef SUSE90COMPAT
-#include <y2pm/MediaCallbacks.h>
-#endif
 #include <y2pm/PkgArch.h>
 #include <y2pm/InstSrcManager.h>
 
@@ -60,6 +56,7 @@
 #include "search.h"
 #include "summary.h"
 #include "distrocheck.h"
+#include "callbacks.h"
 
 using namespace std;
 
@@ -101,9 +98,6 @@ int products(vector<string>& argv);
 
 Y2PMSH y2pmsh;
 
-static ProgressCounter toinstallcounter; // should go into pkgmanager
-static ProgressCounter todeletecounter; // should go into pkgmanager
-
 inline int init(vector<string>& argv)
 {
     return y2pmsh.init(argv);
@@ -128,253 +122,6 @@ static int solveandcommit(int ret, bool ignoreshellmode = false)
 
     return ret;
 }
-
-void progresscallback(const ProgressData & prg, int& lastprogress)
-{
-    int p = (int)((prg.max()-prg.min())/1.0*prg.val());
-    if(p<0) p = 0;
-    if(p>100) p = 100;
-
-    if(p==0) lastprogress = 0;
-
-    int num = (long)60*p/100;
-    for(int i=0; i < num-lastprogress; i++)
-    {
-	cout << ".";
-    }
-    cout.flush();
-    lastprogress = num;
-//    if(p == 100) cout << endl;
-}
-
-class ConvertDbCallback : public RpmDbCallbacks::ConvertDbCallback
-{
-    int lastprogress;
-    int _failed;
-    int _ignored;
-    int _alreadyInV4;
-    virtual void start( const Pathname & v3db )
-    {
-	lastprogress = 0;
-	_failed = _ignored = _alreadyInV4 = 0;
-	cout << "converting database " << v3db << " ";
-    }
-    virtual void progress( const ProgressData & prg,
-			   unsigned failed, unsigned ignored, unsigned alreadyInV4 )
-    {
-	progresscallback(prg, lastprogress);
-	_failed = failed;
-	_ignored = ignored;
-	_alreadyInV4 = alreadyInV4;
-    }
-    virtual void dbInV4( const std::string & pkg )
-    {
-	cout << endl << "package "<< pkg << " already in V4 Database" << endl;
-    }
-    /**
-     * PROCEED: Continue to see if more errors occur, but discard new db.
-     * SKIP:    Ignore error and continue.
-     * CANCEL:  Stop conversion and discard new db.
-     **/
-    virtual CBSuggest dbReadError( int offset )
-    {
-	return CBSuggest::PROCEED;
-    }
-    virtual void dbWriteError( const std::string & pkg )
-    {
-	cout << endl << "write error at package " << pkg << endl;
-    }
-    virtual void stop( PMError error )
-    {
-	if(error != PMError::E_ok)
-	    cout << error << endl;
-	else
-	    cout << " ok" << endl;
-
-	cout << _failed << " failed" << endl;
-	cout << _ignored << " ignored" << endl;
-	cout << _alreadyInV4 << " already in V4 format" << endl;
-    };
-};
-
-/** print dots according to terminal size */
-class DotPainter
-{
-    private:
-	ProgressCounter _pc;
-	int _cols; // terminal width
-	int _dots; // number of already painted dots
-	string _ok; // string to display in case of success
-
-    protected:
-	virtual void paint()
-	{
-	    if(_cols - _dots)
-	    {
-		int needdots = _cols * _pc.percent() / 100;
-		if(needdots > _dots)
-		{
-		    for(int i = 0; i < needdots - _dots; ++i)
-		    {
-			cout << '.';
-		    }
-		    cout << flush;
-		    _dots = needdots;
-		}
-	    }
-	}
-
-    public:
-	DotPainter()
-	{
-	    _ok = " ok";
-	}
-
-	virtual ~DotPainter() {};
-
-	virtual void start( const string& msg )
-	{
-	    _pc.reset();
-	    _cols = _dots = 0;
-
-	    _cols = y2pmsh.tty_width();
-
-	    _cols = _cols - msg.length() - _ok.length();
-	    
-	    if(_cols <= 0)
-		_cols = 60;
-	    
-	    cout << msg;
-	};
-	virtual void progress( const ProgressData & prg )
-	{
-	    _pc = prg;
-	    if(_pc.updateIfNewPercent(5) && _pc.percent())
-	    {
-		paint();
-	    }
-	};
-	virtual void stop( PMError error )
-	{
-	    if(error != PMError::E_ok)
-		cout << "*** failed: " << error << endl;
-	    else
-	    {
-		_pc.set(100);
-		paint();
-
-		cout << _ok << endl;
-	    }
-	};
-};
-
-class InstallPkgCallback : public RpmDbCallbacks::InstallPkgCallback
-{
-    private:
-	DotPainter _dp;
-    public:
-	InstallPkgCallback()
-	{
-	    RpmDbCallbacks::installPkgReport.redirectTo( this );
-	}
-	virtual void start( const Pathname & filename )
-	{
-	    toinstallcounter.incr();
-	    _dp.start(stringutil::form("installing [%3d%%] ", toinstallcounter.percent()) + filename.basename() + " ");
-	};
-	virtual void progress( const ProgressData & prg )
-	{
-	    _dp.progress(prg);
-	};
-	virtual void stop( PMError error )
-	{
-	    _dp.stop(error);
-	};
-};
-
-#ifndef SUSE90COMPAT
-class DownloadCallback : public MediaCallbacks::DownloadProgressCallback
-{
-    private:
-	DotPainter _dp;
-    public:
-	DownloadCallback()
-	{
-	    MediaCallbacks::downloadProgressReport.redirectTo( this );
-	}
-	virtual void start( const Url & url_r, const Pathname & localpath_r )
-	{
-	    _dp.start(string("downloading ") + Pathname(url_r.path()).basename() + " ");
-	}
-	virtual void progress( const ProgressData & prg )
-	{
-	    _dp.progress(prg);
-	}
-	virtual void stop( PMError error )
-	{
-	    _dp.stop(error);
-	}
-};
-#endif
-
-class RemovePkgCallback : public RpmDbCallbacks::RemovePkgCallback
-{
-    private:
-	DotPainter _dp;
-    public:
-	RemovePkgCallback()
-	{
-	    RpmDbCallbacks::removePkgReport.redirectTo( this );
-	}
-	virtual void start( const string& label )
-	{
-	    todeletecounter.incr();
-	    _dp.start(stringutil::form("removing [%3d%%] ", todeletecounter.percent()) + label + " ");
-	};
-	virtual void progress( const ProgressData & prg )
-	{
-	    _dp.progress(prg);
-	};
-	virtual void stop( PMError error )
-	{
-	    _dp.stop(error);
-	};
-};
-
-class RebuildDbCallback : public RpmDbCallbacks::RebuildDbCallback
-{
-    int lastprogress;
-    virtual void start()
-    {
-	lastprogress = 0;
-	cout << "rebuilding rpm database ";
-    };
-    virtual void progress( const ProgressData & prg )
-    {
-	progresscallback(prg, lastprogress);
-    };
-    virtual void stop( PMError error )
-    {
-	if(error != PMError::E_ok)
-	    cout << error << endl;
-	else
-	    cout << " ok" << endl;
-    };
-#ifndef SUSE90COMPAT
-    virtual void notify( const string& msg )
-    {
-	cout << msg << endl;
-    }
-#endif
-};
-
-#ifndef SUSE90COMPAT
-static DownloadCallback downloadcallback;
-#endif
-static InstallPkgCallback installpkgcallback;
-static RebuildDbCallback rebuilddbcallback;
-static ConvertDbCallback convertdbcallback;
-static RemovePkgCallback removepkgcallback;
 
 /** tab expansion */
 class SelectableCompleter : public CmdLineIface::Completer
@@ -707,16 +454,11 @@ int df(vector<string>& argv)
 
 int rebuilddb(vector<string>& argv)
 {
-    cout << "rebuilding database ... " << endl;
-
     PMError err = Y2PM::instTarget().bringIntoCleanState();
-    if(err != PMError::E_ok)
+    if(err)
     {
-	cout << "failed: " << err << endl;
 	return 1;
     }
-    else
-	cout << "done" << endl;
 
     return 0;
 }
@@ -1135,8 +877,8 @@ class CountToInstall
 	}
 	~CountToInstall()
 	{
-	    toinstallcounter.init(0, _toinst, 0);
-	    todeletecounter.init(0, _todel, 0);
+	    y2pmshCB::toinstallcounter.init(0, _toinst, 0);
+	    y2pmshCB::todeletecounter.init(0, _todel, 0);
 	}
 	void operator()(PMSelectablePtr p)
 	{
@@ -1184,11 +926,17 @@ int commit(vector<string>& argv)
 	Y2PM::packageManager().end(),
 	CountToInstall());
 
+    int failed = 0;
     int num = Y2PM::commitPackages (0,errors_r, remaining_r, srcremaining_r);
+
+    if(num < 0) // XXX
+    {
+	failed = 1;
+	num += 100000;
+    }
 
     cout << num << " packages installed" << endl;
 
-    int failed = 0;
     if(!errors_r.empty())
     {
 	failed = 1;
@@ -1200,7 +948,8 @@ int commit(vector<string>& argv)
     {
 	failed = 1;
 	cout << "remaining packages:" << endl;
-	for_each(remaining_r.begin(), remaining_r.end(), Print(cout, "  %s\n"));
+	for_each(remaining_r.begin(), remaining_r.end(), Print(cout, " %s"));
+	cout << "\n" << endl;
     }
 
     if(variables["quitoncommit"].getBool())
@@ -1209,11 +958,12 @@ int commit(vector<string>& argv)
     }
     else
     {
-	cout << "rereading installed packages ... " << flush;
 	PMError err = Y2PM::instTargetUpdate();
-	cout << err << endl;
 	if(err)
-	    cout << endl << "System is in an undefined state now, please quit" << endl;
+	{
+	    cout << "Error reinitializing target: " << err << endl;
+	    cout << "!!! System is in an undefined state now, please quit !!!" << endl;
+	}
     }
 
     return failed;
@@ -1492,8 +1242,6 @@ int main( int argc, char *argv[] )
     if(argc > 1)
 	y2pmsh.shellmode(false);
 
-    RpmDbCallbacks::rebuildDbReport.redirectTo(rebuilddbcallback);
-    RpmDbCallbacks::convertDbReport.redirectTo(convertdbcallback);
 
     init_variables();
     
