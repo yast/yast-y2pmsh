@@ -180,6 +180,55 @@ int whatdependson(vector<string>& argv)
     return 0;
 }
 
+int whatprovides(vector<string>& argv)
+{
+    if(argv.size() < 2 || argv[1] == "--help")
+    {
+	HelpScreen h("whatprovides");
+	cout << h;
+	return 0;
+    }
+
+
+    PkgName what(argv[1]);
+    list<matches_t> matches;
+    
+    PMManager::PMSelectableVec::const_iterator it = Y2PM::packageManager().begin();
+    for(; it != Y2PM::packageManager().end(); ++it)
+    {
+	PMSelectablePtr sp = (*it);
+	if(!sp) continue;
+
+	PMPackagePtr p;
+
+	p = sp->theObject();
+
+	if(!p) continue;
+
+	PMSolvable::Provides_iterator it = p->all_provides_begin();
+
+	for(; it != p->all_provides_end(); ++it)
+	{
+	    if((*it).matches(PkgRelation(what)))
+	    {
+		matches.push_back(matches_t(p, *it));
+	    }
+	}
+
+    }
+
+    for(list<matches_t>::iterator it = matches.begin();
+	it != matches.end(); ++it)
+    {
+	PMPackagePtr pp = it->pkg;
+	if(!pp) continue;
+
+	cout << pp->name() << " provides " << it->rel << endl;
+    }
+
+    return 0;
+}
+
 int depends(vector<string>& argv)
 {
     if(argv.size() < 2 || argv[1] == "--help")

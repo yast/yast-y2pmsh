@@ -330,6 +330,7 @@ void init_commands()
     newcmd("unset",	varunset, 0, "unset variable");
     newcmd("show",	show, 1, "show package info");
     newcmd("search",	search, 1, "search for packages");
+    newcmd("whatprovides",	whatprovides, 1, "search for package provides");
     newcmd("whatrequires",	whatrequires, 1, "search for package requirement");
     newcmd("whatdependson",	whatdependson, 1, "search for depending packages");
     newcmd("depends",	depends, 1, "search for depending packages");
