@@ -282,6 +282,7 @@ int summary(vector<string>& argv)
     FSize sizefetch;
     unsigned numinstall = 0;
     unsigned numdelete = 0;
+    unsigned numkeep = 0;
 
     it = manager.begin();
     end = manager.end();
@@ -290,26 +291,36 @@ int summary(vector<string>& argv)
 	PMSelectablePtr sel(*it);
 	if(!sel) continue;
 
-	if(sel->to_install())
-	{
-	    PMPackagePtr pkg = sel->candidateObj();
-	    if(!pkg) { INT << "pkg NULL" << endl; continue; }
+	PMPackagePtr pi, pc;
 
-	    ++numinstall;
-	    sizeinstall+=pkg->size();
-	    sizefetch+=pkg->archivesize();
-	}
-	if(sel->to_delete())
-	{
-	    PMPackagePtr pkg = sel->installedObj();
-	    if(!pkg) { INT << "pkg NULL" << endl; continue; }
+	pi = sel->installedObj();
+	pc = sel->candidateObj();
 
-	    ++numdelete;
-	    sizeinstall-=pkg->size();
+	switch(sel->fate())
+	{
+	    case PMSelectable::TO_INSTALL:
+		if(!pc) { INT << "pkg NULL" << endl; continue; }
+
+		++numinstall;
+		if(pi)
+		    sizeinstall-=pi->size();
+		sizeinstall+=pc->size();
+		sizefetch+=pc->archivesize();
+		break;
+	    case PMSelectable::TO_DELETE:
+		if(!pi) { INT << "pkg NULL" << endl; continue; }
+
+		++numdelete;
+		sizeinstall-=pi->size();
+		break;
+	    case PMSelectable::UNMODIFIED:
+		if(pi) ++numkeep;
+		break;
 	}
     }
 
     cout << "Packages to install:  " << numinstall << endl;
+    cout << "Packages to keep:     " << numkeep << endl;
     cout << "Packages to delete:   " << numdelete << endl;
     cout << "Download size:        " << sizefetch << endl;
     cout << "Needed Space:         " << sizeinstall << endl;
