@@ -89,6 +89,7 @@ int mem(vector<string>& argv);
 int checkpackage(vector<string>& argv);
 int isc(vector<string>& argv);
 int quit(vector<string>& argv);
+int why(vector<string>& argv);
 
 int testset(vector<string>& argv);
 int testmediaorder(vector<string>& argv);
@@ -384,6 +385,7 @@ void init_commands()
     newpkgcmdA("whatconflictswith", whatconflictswith, 1, "search for conflicting packages");
     newpkgcmd("allconflicts", allconflicts, 1, "display all conflicting packages");
     newpkgcmdA("depends",	depends, 1, "search for depending packages");
+    newpkgcmdA("why",	why, 1, "print solve results for arguments");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
     newcmd("source",	source, 0, "manage installation sources");
     newcmd("_enablesources", enablesources, 3, "enable all sources");
@@ -721,9 +723,11 @@ int delsel(vector<string>& argv)
     return remove_internal(argv, Y2PM::selectionManager());
 }
 
+static PkgDep::ResultList solve_good;
+static PkgDep::ErrorResultList solve_bad;
+
 static bool solve_internal(PMManager& manager, vector<string>& argv)
 {
-    int numinst=0,numbad=0;
     bool success = false;
     bool filter = false;
 
@@ -736,17 +740,10 @@ static bool solve_internal(PMManager& manager, vector<string>& argv)
 	}
     }
 
-    PkgDep::ResultList good;
-    PkgDep::ErrorResultList bad;
+    solve_good.clear();
+    solve_bad.clear();
 
-    success = manager.solveInstall(good, bad, filter);
-
-
-    numinst = printgoodlist(good);
-    numbad = printbadlist(bad);
-
-    cout << "***" << endl;
-    cout << numbad << " bad, " << numinst << " to install" << endl;
+    success = manager.solveInstall(solve_good, solve_bad, filter);
 
     return success;
 }
@@ -754,18 +751,66 @@ static bool solve_internal(PMManager& manager, vector<string>& argv)
 int solve(vector<string>& argv)
 {
     bool ok = solve_internal(Y2PM::packageManager(), argv);
+
+    printgoodlist(solve_good);
+    unsigned numbad = printbadlist(solve_bad);
+
+    cout << endl;
+    cout << "Packages with errors: " << numbad  << endl;
+
+    vector<string> dummy;
+    summary(dummy);
+
     return ok?0:1;
 }
 
 int solvesel(vector<string>& argv)
 {
     bool ok = solve_internal(Y2PM::selectionManager(), argv);
+
+    unsigned numinst = printgoodlist(solve_good);
+    unsigned numbad = printbadlist(solve_bad);
+
+    cout << endl;
+    cout << numbad << " bad, " << numinst << " to install" << endl;
+
     if(ok)
     {
-	cout << "solve ok, activating selection" << endl;
+	cout << "\nsolve ok, activating selection" << endl;
 	Y2PM::selectionManager().activate();
     }
     return ok?0:1;
+}
+
+int why(vector<string>& argv)
+{
+    set<string> want;
+    int ret = 1;
+
+    for(vector<string>::iterator it= argv.begin()+1; it != argv.end();++it)
+    {
+	want.insert(*it);
+    }
+
+    for(PkgDep::ResultList::const_iterator p=solve_good.begin();p!=solve_good.end();++p)
+    {
+	if(want.find(p->name) != want.end())
+	{
+	    cout << *p << endl;
+	    ret = 0;
+	}
+    }
+    for( PkgDep::ErrorResultList::const_iterator bp = solve_bad.begin();
+	 bp != solve_bad.end(); ++bp )
+    {
+	if(want.find(bp->name) != want.end())
+	{
+	    cout << *bp << endl;
+	    ret = 0;
+	}
+    }
+
+    return ret;
 }
 
 int order(vector<string>& argv)
@@ -979,8 +1024,14 @@ int testmediaorder(vector<string>& argv)
 
     Y2PM::packageManager().getPackagesToInsDel (dellist, inslist, srclist);
 
+    bool quiet = false;
     unsigned int current_src_media = 0;
     constInstSrcPtr current_src_ptr = 0;
+
+    if(argv.size() > 1 && argv[1] == "-q")
+    {
+	quiet = true;
+    }
 
     for (std::list<PMPackagePtr>::iterator it = inslist.begin();
 	it != inslist.end(); ++it)
@@ -1003,7 +1054,8 @@ int testmediaorder(vector<string>& argv)
 
 	}
 
-	cout << ' ' << (*it)->name();
+	if(!quiet)
+	    cout << ' ' << (*it)->name();
     }
     cout << endl;
 

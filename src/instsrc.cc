@@ -120,6 +120,13 @@ static int source_update(const vector<string>& argv, unsigned parampos)
 		return 1;
 	    }
 	}
+	err = Y2PM::instSrcManager().setNewRanks();
+	if(err)
+	{
+	    cout << err << endl;
+	    return 1;
+	}
+
 	cout << err << endl;
     }
     return 0;
