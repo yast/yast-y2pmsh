@@ -5,6 +5,7 @@ Fri Sep 10 17:04:36 CEST 2004 - lnussel@suse.de
 - fix prompt in non-interactive mode
 - add options to only show dependencies to 'show' function
 - add "top ten" feature to 'depstats'
+- add 9.2 as distribution for y2pmbuild
 - 2.10.0
 
 -------------------------------------------------------------------
