@@ -38,7 +38,9 @@
 #include <y2pm/PMSelectionManager.h>
 #include <y2pm/InstSrcDescr.h>
 #include <y2pm/RpmDbCallbacks.h>
+#ifndef SUSE90COMPAT
 #include <y2pm/MediaCallbacks.h>
+#endif
 #include <y2pm/PkgArch.h>
 #include <y2pm/InstSrcManager.h>
 
@@ -267,6 +269,7 @@ class InstallPkgCallback : public RpmDbCallbacks::InstallPkgCallback
 	};
 };
 
+#ifndef SUSE90COMPAT
 class DownloadCallback : public MediaCallbacks::DownloadProgressCallback
 {
     private:
@@ -289,6 +292,7 @@ class DownloadCallback : public MediaCallbacks::DownloadProgressCallback
 	    _dp.stop(error);
 	}
 };
+#endif
 
 class RemovePkgCallback : public RpmDbCallbacks::RemovePkgCallback
 {
@@ -338,7 +342,9 @@ class RebuildDbCallback : public RpmDbCallbacks::RebuildDbCallback
 #endif
 };
 
+#ifndef SUSE90COMPAT
 static DownloadCallback downloadcallback;
+#endif
 static InstallPkgCallback installpkgcallback;
 static RebuildDbCallback rebuilddbcallback;
 static ConvertDbCallback convertdbcallback;
