@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Mar  5 12:45:23 CET 2004 - lnussel@suse.de
+
+- refuse build root not owned by root
+- use yast2 devtools for package generation
+- fix build with new packagemanger includes
+
+-------------------------------------------------------------------
 Tue Mar  2 18:09:19 CET 2004 - lnussel@suse.de
 
 - tab completion for package names
