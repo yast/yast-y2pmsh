@@ -357,7 +357,7 @@ void init_variables()
     variables["quitonfail"] = Variable("0",false);
     vardesc["quitonfail"] = "quit if a command failed";
 
-    variables["instlog"] = Variable("",false,instlogvalidate);
+    variables["instlog"] = Variable("/var/log/YaST2/y2logRPM",false,instlogvalidate);
     vardesc["instlog"] = "set installation log file";
 
     variables["createbackups"] = Variable("0",false,createbackups);

@@ -8,7 +8,7 @@
 class CmdLineIface
 {
     public:
-	// primitive completion function
+	/** primitive completion function for tab expansion */
 	class Completer
 	{
 	    public:

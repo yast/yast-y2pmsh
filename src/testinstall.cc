@@ -376,61 +376,17 @@ static RebuildDbCallback rebuilddbcallback;
 static ConvertDbCallback convertdbcallback;
 static RemovePkgCallback removepkgcallback;
 
-#if 0
-void providestartcallback(const std::string& name, const FSize& s, bool, void*)
-{
-    cout << stringutil::form("Downloading %s (%s)",name.c_str(), s.asString().c_str()) << endl;
-}
-
-std::string providedonecallback(PMError error, const std::string& reason, const std::string&, void*)
-{
-    if(lastprogress != 100)
-	progresscallback(100,NULL);
-    lastprogress = 0;
-
-    if(error)
-    {
-	cout << error << ": " << reason << endl;
-	return "I";
-    }
-    else
-    {
-	cout << "ok" << endl;
-	return "";
-    }
-}
-
-std::string packagedonecallback(PMError error, const std::string& reason, void*)
-{
-    return providedonecallback(error,reason,"",NULL);
-}
-
-bool pkgstartcallback(const std::string& name, const std::string& summary, const FSize& size, bool is_delete, void*)
-{
-    if(is_delete)
-    {
-	cout << stringutil::form("Deleting %s",name.c_str()) << endl;
-    }
-    else
-    {
-	cout << stringutil::form("Installing %s (%s) - %s ",name.c_str(),size.asString().c_str(),summary.c_str()) << endl;
-    }
-    return true;
-}
-
-static void sourcechangecallback(InstSrcManager::ISrcId srcid, int medianr, void*)
-{
-    cout << "switching to source " << srcid << ", Media Nr. " << medianr << endl;
-}
-#endif
-
-class PackageCompleter : public CmdLineIface::Completer
+/** tab expansion */
+class SelectableCompleter : public CmdLineIface::Completer
 {
     private:
 	string _name;
+	PMManager& _manager;
+
     public:
-	PackageCompleter(const string name) : _name(name) {};
-	virtual ~PackageCompleter() {};
+	SelectableCompleter(const string& name, PMManager& manager)
+	    : _name(name), _manager(manager) {};
+	virtual ~SelectableCompleter() {};
 	virtual const std::string command() { return _name; };
 	virtual std::vector<std::string> completions(const std::string word)
 	{
@@ -440,8 +396,8 @@ class PackageCompleter : public CmdLineIface::Completer
 
 	    PMManager::PMSelectableVec::iterator it;
 
-	    for (it = Y2PM::packageManager().begin();
-		it != Y2PM::packageManager().end(); ++it)
+	    for (it = _manager.begin();
+		it != _manager.end(); ++it)
 	    {
 		string name = (*it)->name();
 		if(name.substr(0, word.length()) == word)
@@ -454,10 +410,33 @@ class PackageCompleter : public CmdLineIface::Completer
 	}
 };
 
-class PackageWordExpander : public Command::WordExpander
+class PackageCompleter : public SelectableCompleter
+{
+    public:
+	PackageCompleter(const string& name) : SelectableCompleter(name, Y2PM::packageManager()) {}
+	virtual ~PackageCompleter()
+	{
+	}
+};
+
+class SelectionCompleter : public SelectableCompleter
+{
+    public:
+	SelectionCompleter(const string& name) : SelectableCompleter(name, Y2PM::selectionManager()) {}
+	virtual ~SelectionCompleter()
+	{
+	}
+};
+
+
+/** wildcard expansion */
+class SelectableWordExpander : public Command::WordExpander
 {
     public:
 	typedef std::vector<std::string> Words;
+
+    private:
+	PMManager& _manager;
 
     protected:
 	class CheckSkipPackage
@@ -504,15 +483,17 @@ class PackageWordExpander : public Command::WordExpander
 	    private:
 		Words& _words;
 		CheckSkipPackage& _skip;
+		PMManager& _manager;
 		
 	    public:
-		ExpandWord(Words& words, CheckSkipPackage& skip) : _words(words), _skip(skip) {};
+		ExpandWord(Words& words, CheckSkipPackage& skip, PMManager& manager)
+		    : _words(words), _skip(skip), _manager(manager) {};
 		void operator()(const std::string& word)
 		{
 		    bool havematch = false;
 		    for_each(
-			Y2PM::packageManager().begin(),
-			Y2PM::packageManager().end(),
+			_manager.begin(),
+			_manager.end(),
 			MatchPackage(word, _words, _skip, havematch));
 
 		    if(!havematch)
@@ -528,8 +509,8 @@ class PackageWordExpander : public Command::WordExpander
 	}
 
     public:
-	PackageWordExpander() : WordExpander() {}
-	virtual ~PackageWordExpander() {}
+	SelectableWordExpander(PMManager& manager) : WordExpander(), _manager(manager) {}
+	virtual ~SelectableWordExpander() {}
 	virtual std::vector<std::string> operator()(const std::vector<std::string>& words)
 	{
 	    Words out;
@@ -542,13 +523,13 @@ class PackageWordExpander : public Command::WordExpander
 
 	    out.push_back(*words.begin());
 	    CheckSkipPackage& skip = skipper();
-	    for_each(words.begin()+1, words.end(), ExpandWord(out, skip));
+	    for_each(words.begin()+1, words.end(), ExpandWord(out, skip, _manager));
 
 	    return out;
 	}
 };
 
-class CandidatePackageWordExpander : public PackageWordExpander
+class CandidateSelectableWordExpander : public SelectableWordExpander
 {
     protected:
 	/** check whether installed package is older and can be upgraded */
@@ -572,11 +553,11 @@ class CandidatePackageWordExpander : public PackageWordExpander
 	    return _skip;
 	}
     public:
-	CandidatePackageWordExpander() : PackageWordExpander() {}
-	virtual ~CandidatePackageWordExpander() {}
+	CandidateSelectableWordExpander(PMManager& manager) : SelectableWordExpander(manager) {}
+	virtual ~CandidateSelectableWordExpander() {}
 };
 
-class InstalledPackageWordExpander : public PackageWordExpander
+class InstalledSelectableWordExpander : public SelectableWordExpander
 {
     protected:
 	/** check whether package is installed */
@@ -600,18 +581,40 @@ class InstalledPackageWordExpander : public PackageWordExpander
 	    return _skip;
 	}
     public:
-	InstalledPackageWordExpander() : PackageWordExpander() {}
-	virtual ~InstalledPackageWordExpander() {}
+	InstalledSelectableWordExpander(PMManager& manager) : SelectableWordExpander(manager) {}
+	virtual ~InstalledSelectableWordExpander() {}
 };
 
 
 void init_commands()
 {
-#define newcmd(a,b,c,d) y2pmsh.cmd.add(new Command(a,b,c,d))
-#define newpkgcmd(a,b,c,d) newcmd(a,b,c,d); y2pmsh.cli().registerCompleter(new PackageCompleter(a));
-#define newpkgcmdC(a,b,c,d) newpkgcmd(a,b,c,d); y2pmsh.cmd[a]->Expander(new CandidatePackageWordExpander());
-#define newpkgcmdI(a,b,c,d) newpkgcmd(a,b,c,d); y2pmsh.cmd[a]->Expander(new InstalledPackageWordExpander());
-#define newpkgcmdA(a,b,c,d) newpkgcmd(a,b,c,d); y2pmsh.cmd[a]->Expander(new PackageWordExpander());
+#define newcmd(a,b,c,d) \
+    y2pmsh.cmd.add(new Command(a,b,c,d))
+#define newpkgcmd(a,b,c,d) \
+    newcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new PackageCompleter(a));
+#define newpkgcmdC(a,b,c,d) \
+    newpkgcmd(a,b,c,d); \
+    y2pmsh.cmd[a]->Expander(new CandidateSelectableWordExpander(Y2PM::packageManager()));
+#define newpkgcmdI(a,b,c,d) \
+    newpkgcmd(a,b,c,d); \
+    y2pmsh.cmd[a]->Expander(new InstalledSelectableWordExpander(Y2PM::packageManager()));
+#define newpkgcmdA(a,b,c,d) \
+    newpkgcmd(a,b,c,d); \
+    y2pmsh.cmd[a]->Expander(new SelectableWordExpander(Y2PM::packageManager()));
+
+#define newselcmd(a,b,c,d) \
+    newcmd(a,b,c,d); \
+    y2pmsh.cli().registerCompleter(new SelectionCompleter(a));
+#define newselcmdC(a,b,c,d) \
+    newselcmd(a,b,c,d); \
+    y2pmsh.cmd[a]->Expander(new CandidateSelectableWordExpander(Y2PM::selectionManager()));
+#define newselcmdI(a,b,c,d) \
+    newselcmd(a,b,c,d); \
+    y2pmsh.cmd[a]->Expander(new InstalledSelectableWordExpander(Y2PM::selectionManager()));
+#define newselcmdA(a,b,c,d) \
+    newselcmd(a,b,c,d); \
+    y2pmsh.cmd[a]->Expander(new SelectableWordExpander(Y2PM::selectionManager()));
 
 // flags: 1 = need init, 2 = hidden, 4 = advanced
     newpkgcmdC("install",	install, 1, "select packages for installation");
@@ -621,8 +624,8 @@ void init_commands()
     newcmd("solve",	solve, 1, "solve dependencies");
     newpkgcmdA("state",	state, 1, "show state of package(s)");
     newcmd("newer",	newer, 1, "show packages with newer candiate available");
-    newcmd("rpminstall",	rpminstall, 3, "install rpm files");
-    newcmd("consistent",	consistent, 3, "check consistency");
+    newcmd("_rpminstall",	rpminstall, 3, "install rpm files");
+    newcmd("_consistent",	consistent, 3, "check consistency");
     newcmd("set",		varset, 0, "set or show variable");
     newcmd("unset",	varunset, 0, "unset variable");
     newpkgcmdA("show",	show, 1, "show package info");
@@ -634,35 +637,38 @@ void init_commands()
     newpkgcmd("allconflicts", allconflicts, 1, "display all conflicting packages");
     newpkgcmdA("depends",	depends, 1, "search for depending packages");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
-//    newcmd("query",     query, 5, "query packagemanager");
     newcmd("source",	source, 0, "manage installation sources");
-    newcmd("enablesources", enablesources, 3, "enable all sources");
+    newcmd("_enablesources", enablesources, 3, "enable all sources");
     newcmd("_deletemediaatexit", _deletemediaatexit, 3, "delete all medias at exit");
     newcmd("buildsolve",	buildsolve, 3, "solve dependencies like the build script");
-    newcmd("rebuilddb",	rebuilddb, 3, "rebuild rpm db");
+    newcmd("_rebuilddb",	rebuilddb, 3, "rebuild rpm db");
     newcmd("df",	df, 1, "display disk space forecast");
-    newcmd("selstate",	selstate, 1,  "show state of selection");
-    newcmd("setappl",	setappl, 5, "set package to installed like a selection would do");
-    newcmd("order",	order, 3, "compute installation order");
+    newpkgcmdC("_installappl",	setappl, 5, "set package to installed like a selection would do");
+    newcmd("_order",	order, 3, "compute installation order");
     newcmd("upgrade",	upgrade, 1, "compute upgrade");
     newcmd("summary",	summary, 1, "display summary about what would be done on commit");
-    newcmd("depstats",	depstats, 3, "dependency statistics");
+    newcmd("_depstats",	depstats, 3, "dependency statistics");
     newcmd("commit",	commit, 1, "commit changes. actually performs installation");
-    newcmd("selshow",	selshow, 1, "show selection info");
-    newcmd("selinstall",	setsel, 1, "mark selection for installation, need to call solvesel");
-    newcmd("selremove",	delsel, 1, "mark selection for removal, need to call solvesel");
-    newcmd("selsolve",	solvesel, 1, "solve selection dependencies and apply state to packages");
-    newcmd("cdattach",	cdattach, 2, "cdattach");
+    newselcmdA("selstate",	selstate, 1,  "show state of selection");
+    newselcmdA("selshow",	selshow, 1, "show selection info");
+    newselcmdC("selinstall",	setsel, 1, "mark selection for installation, need to call solvesel");
+    newselcmdI("selremove",	delsel, 1, "mark selection for removal, need to call solvesel");
+    newselcmd("selsolve",	solvesel, 1, "solve selection dependencies and apply state to packages");
+    newcmd("_cdattach",	cdattach, 2, "cdattach");
     newcmd("distrocheck", distrocheck, 7, "find unsatisfied dependencies among candidates");
     newcmd("mem",	mem, 2, "memory statistics");
-    newcmd("testset",	testset, 2, "test memory consumption of PkgSet");
-    newcmd("testmediaorder", testmediaorder, 3, "test media order");
+    newcmd("_testset",	testset, 2, "test memory consumption of PkgSet");
+    newcmd("_testmediaorder", testmediaorder, 3, "test media order");
     newcmd("init",	init, 1, "initialize packagemanager (happens automatically if needed)");
     newcmd("help",	help, 0, "this screen");
     newcmd("products", products, 1, "show installed products");
-    newcmd("checkpackage", checkpackage, 6, "check rpm file signature");
+    newcmd("_checkpackage", checkpackage, 6, "check rpm file signature");
     newcmd("quit",	quit, 2, "quit");
     newcmd("exit",	quit, 2, "exit");
+#undef newselcmdA
+#undef newselcmdI
+#undef newselcmdC
+#undef newselcmd
 #undef newpkgcmdA
 #undef newpkgcmdI
 #undef newpkgcmdC
@@ -811,13 +817,62 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
 	    if(pkg.empty()) continue;
 	
 
-	    PMSelectablePtr selp = manager.getItem(pkg);
+	    PMSelectablePtr selp;
+	    PkgEdition ed;
+
+	    selp = manager.getItem(pkg);
+
+	    if(!selp)
+	    {
+		PkgNameEd ned = PkgNameEd::fromString(pkg);
+		selp = manager.getItem(ned.name);
+		ed = ned.edition;
+	    }
+
 	    if(!selp || !selp->has_candidate())
 	    {
 		failed = 1;
-		std::cout << "package " << pkg << " is not available.\n";
+		std::cout << "package " << pkg << " is not available." << endl;
 		continue;
 	    }
+
+	    if(!ed.is_unspecified())
+	    {
+		bool gotmatch = false;
+		PMObjectPtr op = selp->candidateObj();
+		if(!op) { std::cout << "OOPS: got NULL for " << pkg << endl; continue; }
+		if(op->edition() == ed)
+		{
+		    gotmatch = true;
+		}
+		else
+		{
+		    PMSelectable::PMObjectList::const_iterator it;
+		    for(it = selp->av_begin(); it != selp->av_end(); ++it)
+		    {
+			op = *it;
+			if(op->edition() == ed )
+			{
+			    if(selp->setUserCandidate(op))
+			    {
+				gotmatch = true;
+				break;
+			    }
+			    else
+			    {
+				cout << "could not set " << op->nameEd() << endl;
+			    }
+			}
+		    }
+		}
+
+		if(!gotmatch)
+		{
+		    cout << pkg << " not available in version " << ed << endl;
+		    continue;
+		}
+	    }
+	    
 	    vec.insert(selp);
 	}
 	begin=vec.begin();
