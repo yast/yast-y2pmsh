@@ -1,0 +1,114 @@
+Index: yast2-packagemanager-2.8.35/src/libPkgDep/alternatives.cc
+===================================================================
+--- yast2-packagemanager-2.8.35.orig/src/libPkgDep/alternatives.cc	2004-01-27 19:18:44.000000000 +0100
++++ yast2-packagemanager-2.8.35/src/libPkgDep/alternatives.cc	2004-01-27 22:49:47.000000000 +0100
+@@ -17,11 +17,76 @@
+ 		if (PkgSet::getRevRelforPkg(vinstalled.provided(),reqname).size() != 0) {
+ 			PMSolvablePtr first_provider
+ 				= PkgSet::getRevRelforPkg(vinstalled.provided(),reqname).front().pkg();
++#ifdef phicode
+ 			D__ << "Alternative for " << reqname << " already handled -- "
+-				 "adding reference from " << cand->name() << " on "
++				 "adding reference from installed/accepted " << cand->name() << " on "
+ 				 << alt_info.req << " provided by "
+ 				 << first_provider->name() << endl;
+ 			add_referer( first_provider, cand, alt_info.req );
++#endif
++			D__ << "Alternative for " << reqname << " needed by " << cand->name()
++				<< " already handled, put back to to_check" << endl;
++			// well, now we know that the alternative was already
++			// handled but we still don't know whether this
++			// particular package is ok. I'll add it back to
++			// to_check in the hope that this won't generate
++			// loops. this has yet to be proofed -- ln
++			to_check.push_back(cand);
++		}
++		// this branch was not here before. Why we need it: XFree86-GLX
++		// and mesasoft provide libGL.so.1, arts and kdelibs3 need it.
++		// arts alternative is handled first, XFree86-GLX is selected
++		// and added to candidates. Now at the time kdelibs3 is checked
++		// XFree86-GLX is still in candidates, not vinstalled! -- ln
++		else if (PkgSet::getRevRelforPkg(candidates->provided(),reqname).size() != 0) {
++			PMSolvablePtr first_provider
++				= PkgSet::getRevRelforPkg(candidates->provided(),reqname).front().pkg();
++#ifdef phicode
++			D__ << "Alternative for " << reqname << " already handled -- "
++				 "adding reference from candiate " << cand->name() << " on "
++				 << alt_info.req << " provided by "
++				 << first_provider->name() << endl;
++			add_referer( first_provider, cand, alt_info.req );
++#endif
++			D__ << "Alternative for " << reqname << " needed by " << cand->name()
++				<< " already handled, put back to to_check" << endl;
++			// well, now we know that the alternative was already
++			// handled but we still don't know whether this
++			// particular package is ok. I'll add it back to
++			// to_check in the hope that this won't generate
++			// loops. this has yet to be proofed -- ln
++			to_check.push_back(cand);
++		}
++		else
++		{
++			D__ << "no package in vinstalled or candidates provides "
++				<< reqname << " but the alternatives are already handled" << endl;
++			// This branch should only be reached when no automatic
++			// alternative selection is active (normal case). Since
++			// the alternative was already handled must have
++			// produced an error result. So we search for the
++			// result and add us as referer. -- ln
++
++			bool found = false;
++			i_for( ErrorResultList::,, p, bad->, )
++			{
++				if( p->name == reqname )
++				{
++					found = true;
++					add_referer(p->name, cand, alt_info.req );
++				}
++			}
++			if(!found) INT << "already handled alternative " <<
++				reqname << " not found in badlist" << endl;
++
++			/* we don't generate this result to not flood the list
++			 * with redundant information. the alternative error
++			 * should already suffice
++			ErrorResult res = alt_info.result;
++			res.add_unresolvable( cand, alt_info.req );
++			bad->push_back( res );
++			*/
++
+ 		}
+ 		return;
+ 	}
+@@ -192,11 +257,13 @@
+ 		to_check.push_back( use_pkg );
+ 
+ 		if (cand) {
+-// FIXME: what if alt_info.result was a ErrorResult? conflicts are just ignored here
+ 			add_referer( use_pkg, cand, alt_info.req );
+-			D__ << "Candidate " << cand->name() << " ok\n";
+-			good->push_back( alt_info.result );
+-			vinstalled.add( cand, true );
++			D__ << "Candidate " << cand->name() << "seems ok, check again\n";
++			to_check.push_back(cand);
++			// putting this into good is definitively no good idea,
++			// could have been an error result
++			//good->push_back( alt_info.result );
++			//vinstalled.add( cand, true );
+ 		}
+ 	}
+ 	else {
+@@ -226,9 +293,13 @@
+ 
+ 		if (cand) {
+ 			D__ << "Candidate " << cand->name() << " failed\n";
++			/* we don't generate this result to not flood the list
++			 * with redundant information. the alternative error
++			 * should already suffice
+ 			ErrorResult res = alt_info.result;
+ 			res.add_unresolvable( cand, alt_info.req );
+ 			bad->push_back( res );
++			*/
+ 		}
+ 		else {
+ 			ci_for( ,RevRelList_, alt, alt_info.providers., ) {

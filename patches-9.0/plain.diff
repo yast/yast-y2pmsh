@@ -1,0 +1,148 @@
+Index: yast2-packagemanager-2.8.35/src/inst/InstSrcDataPLAIN.cc
+===================================================================
+--- yast2-packagemanager-2.8.35.orig/src/inst/InstSrcDataPLAIN.cc	2003-07-29 23:00:36.000000000 +0000
++++ yast2-packagemanager-2.8.35/src/inst/InstSrcDataPLAIN.cc	2004-01-06 23:04:14.000000000 +0000
+@@ -270,13 +270,16 @@
+   ndescr_r = 0;
+   PMError err;
+ 
++  PathInfo cpath;
++
++  if ( Y2PM::runningFromSystem() || Y2PM::cacheToRamdisk() ) {
+   ///////////////////////////////////////////////////////////////////
+   // Check local cache
+   ///////////////////////////////////////////////////////////////////
+ 
+   Pathname cdir( source_r->cache_data_dir() );
+ 
+-  PathInfo cpath( cdir );
++  cpath( cdir );
+   if ( !cpath.isDir() ) {
+     WAR << "Cache disabled: cachedir does not exist: " << cpath << endl;
+     return Error::E_src_cache_disabled;
+@@ -349,6 +352,17 @@
+     MIL << "Created cache for " << res << " packages found." << endl;
+   }
+ 
++  }
++  else
++  {
++    PMError err = media_r->provideFile( "IS_PLAINcache" );
++    if ( err ) {
++	ERR << "Media can't provide 'IS_PLAINcache' " << err << endl;
++	return err;
++    }
++    cpath = media_r->localPath("IS_PLAINcache");
++  }
++
+   ///////////////////////////////////////////////////////////////////
+   // looks good? So create descr.
+   ///////////////////////////////////////////////////////////////////
+@@ -389,6 +403,7 @@
+ {
+   ndata_r = 0;
+   PMError err;
++  PathInfo cpath;
+ 
+   ///////////////////////////////////////////////////////////////////
+   // Check local cache
+@@ -396,7 +411,9 @@
+ 
+   Pathname cdir( source_r->cache_data_dir() );
+ 
+-  PathInfo cpath( cdir );
++  if ( Y2PM::runningFromSystem() || Y2PM::cacheToRamdisk() ) {
++
++  cpath( cdir );
+   if ( !cpath.isDir() ) {
+     WAR << "Cache disabled: cachedir does not exist: " << cpath << endl;
+     return Error::E_src_cache_disabled;
+@@ -412,6 +429,12 @@
+     }
+   }
+ 
++  }
++  else
++  {
++    cpath = source_r->media()->localPath("IS_PLAINcache");
++  }
++
+   if ( !cpath.isFile() ) {
+     ERR << "No cachefile found in " << cdir << endl;
+     return Error::E_isrc_cache_invalid;
+@@ -419,7 +442,7 @@
+     MIL << "Using cachefile " << cpath << endl;
+   }
+ 
+-  ///////////////////////////////////////////////////////////////////
++ ///////////////////////////////////////////////////////////////////
+   // parse InstSrcData from cache and fill ndata
+   ///////////////////////////////////////////////////////////////////
+ 
+Index: yast2-packagemanager-2.8.35/src/inst/InstSrc.cc
+===================================================================
+--- yast2-packagemanager-2.8.35.orig/src/inst/InstSrc.cc	2003-10-23 08:06:57.000000000 +0000
++++ yast2-packagemanager-2.8.35/src/inst/InstSrc.cc	2004-01-06 22:49:33.000000000 +0000
+@@ -418,17 +418,20 @@
+   // first prepare cache
+   // cachedir must not exist, but parent dir must.
+   ///////////////////////////////////////////////////////////////////
+-  PathInfo cpath( cachedir_r );
++  if ( Y2PM::runningFromSystem() || Y2PM::cacheToRamdisk() ) {
+ 
+-  if ( cpath.isExist() ) {
+-    ERR << "Cache dir already exists " << cpath << endl;
+-    return Error::E_cache_dir_exists;
+-  }
++    PathInfo cpath( cachedir_r );
++
++    if ( cpath.isExist() ) {
++      ERR << "Cache dir already exists " << cpath << endl;
++      return Error::E_cache_dir_exists;
++    }
+ 
+-  int res = PathInfo::mkdir( cpath.path() );
+-  if ( res ) {
+-    ERR << "Unable to create cache dir " << cpath << " (errno " << res << ")" << endl;
+-    return Error::E_cache_dir_create;
++    int res = PathInfo::mkdir( cpath.path() );
++    if ( res ) {
++      ERR << "Unable to create cache dir " << cpath << " (errno " << res << ")" << endl;
++      return Error::E_cache_dir_create;
++    }
+   }
+ 
+   _cache = cachedir_r;
+@@ -439,7 +442,7 @@
+   ///////////////////////////////////////////////////////////////////
+ 
+   if ( Y2PM::runningFromSystem() || Y2PM::cacheToRamdisk() ) {
+-    res = PathInfo::assert_dir( cache_descr_dir() );
++    int res = PathInfo::assert_dir( cache_descr_dir() );
+     if ( res ) {
+       ERR << "Unable to create descr_dir " << cache_descr_dir() << " (errno " << res << ")" << endl;
+       return Error::E_cache_dir_create;
+@@ -450,17 +453,17 @@
+       ERR << "Unable to create data_dir " << cache_data_dir() << " (errno " << res << ")" << endl;
+       return Error::E_cache_dir_create;
+     }
++
++    res = PathInfo::assert_dir( cache_media_dir() );
++    if ( res ) {
++      ERR << "Unable to create media_dir " << cache_media_dir() << " (errno " << res << ")" << endl;
++      return Error::E_cache_dir_create;
++    }
+   } else {
+     _may_use_cache = false;
+     MIL << "descr/data caches disabled" << endl;
+   }
+ 
+-  res = PathInfo::assert_dir( cache_media_dir() );
+-  if ( res ) {
+-    ERR << "Unable to create media_dir " << cache_media_dir() << " (errno " << res << ")" << endl;
+-    return Error::E_cache_dir_create;
+-  }
+-
+   return Error::E_ok;
+ }
+ 

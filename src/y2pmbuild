@@ -1,0 +1,379 @@
+#!/bin/bash
+
+y2pmbuildconfdir=/etc/y2pmbuild
+create_package_descr=/opt/kde3/share/apps/krpmview/create_package_descr
+
+: ${builduser:=compiler}
+: ${builddebugsolve:=0}
+
+ccache=0
+quilt=0
+doinit=1
+rpmbuild=rpmbuild
+
+success=0;
+
+if [ -z "$BUILD_DIST" ]; then
+    have_repo=0;
+elif ! . "$y2pmbuildconfdir/dists/$BUILD_DIST" ; then
+    have_repo=0
+else
+    have_repo=1
+fi
+
+if [ -z "$buildroot" ]; then
+    user=`id -un`
+    [ "$user" = root -a "$SUDO_USER" != root ] && user="$SUDO_USER"
+    buildroot="/var/tmp/build-root.$user"
+    [ -n "$BUILD_DIST" ] && buildroot="$buildroot.$BUILD_DIST"
+fi
+
+defaultpackages="fillup attr acl aaa_base filesystem autoconf automake bash binutils bison bzip2 cpio cpp cracklib cyrus-sasl db devs diffutils e2fsprogs file findutils flex gawk gcc gdbm gdbm-devel gettext glibc glibc-devel glibc-locale gpm grep groff gzip kbd less libgcc libstdc++ libtool libxcrypt zlib m4 make man mktemp modutils ncurses ncurses-devel net-tools netcfg pam pam-devel pam-modules patch perl permissions ps rcs readline rpm sed sendmail shadow strace syslogd sysvinit tar texinfo timezone unzip util-linux vim zlib-devel"
+
+neededpackages=
+
+cleanup()
+{
+    set +e
+    trap EXIT
+    if [ "$buildroot" != / ]; then
+	umount -n $buildroot/proc 2> /dev/null
+	umount -n $buildroot/mnt 2> /dev/null
+	umount -n $buildroot/dev/pts 2> /dev/null
+    fi
+
+    rm -f "$buildroot/.locked"
+
+    if [ "$success" = 0 ]; then
+	echo -n "FAILED $spec at " >> "$buildroot/.build.packages"
+	date >> "$buildroot/.build.packages"
+    fi
+}
+
+regenrepository()
+{
+    [ "$have_repo" != 1 ] && return 0
+    
+    install -m 755 -d "$repository"
+
+    if [ "$regen_repository" = plain ]; then
+	pushd .
+	cd "$repository"
+	genIS_PLAINcache -f -r "$repository"
+	popd
+    elif [ "$regen_repository" = ul ]; then
+	pushd .
+	cd "$repository"
+	$create_package_descr
+	popd
+    fi
+}
+
+addsourcesfromrepository()
+{
+    [ "$have_repo" != 1 ] && return 0
+
+    echo "set cachetodisk false"
+
+    if [ -n "$url_repository" ]; then
+	# doesn't work yet, can't add plainsources with cachetodisk false
+	echo "source -a $url_repository"
+    fi
+
+    for s in $add_sources; do
+	eval src=\$url_$s
+	echo "source -a $src"
+    done
+}
+
+copyfilestorepository()
+{
+    find "$buildroot/usr/src/packages/RPMS" -type f -printf '\033[1m%p\033[m\n'
+    find "$buildroot/usr/src/packages/SRPMS" -type f
+
+    [ "$have_repo" != 1 ] && return 0
+
+    rpmdir="$buildroot"/usr/src/packages/RPMS
+    while read rpm; do
+	dir="$repository"/${rpm%%/*}
+	mkdir -p "$dir"
+	set -- cp "$rpmdir/$rpm" "$dir"
+	echo "$@"
+	"$@"
+    done < <(find "$rpmdir" -type f -printf '%P\n')
+
+    rpmdir="$buildroot"/usr/src/packages/SRPMS
+    while read rpm; do
+	dir="$repository"/src
+	mkdir -p "$dir"
+	set -- cp "$rpmdir/$rpm" "$dir"
+	echo "$@"
+	"$@"
+    done < <(find "$rpmdir" -type f -printf '%P\n')
+
+    regenrepository
+}
+
+parse_spec()
+{
+    file="$1";
+    [ ! -e "$file" ] && return 1
+    spec_usedforbuild=`grep "^# *usedforbuild" "$file" || true`
+    spec_norootforbuild=`grep "^# *norootforbuild" "$file" || true`
+
+    if [ -z "$spec_norootforbuild" ]; then
+	echo -e "\e[34mWARNING: spec file misses 'norootforbuild'\e[m"
+    fi
+}
+
+# $1 specfile
+getneededforbuild()
+{
+#    if [ -z "$spec_usedforbuild" ] ; then
+#	neededpackages="$defaultpackages"
+#    fi
+    for i in $spec_usedforbuild; do
+	case "$i" in
+	\#*)
+	;;
+	usedforbuild)
+	;;
+	*)
+	    neededpackages="$neededpackages $i"
+	;;
+	esac
+    done
+    if [ "$ccache" -eq 1 ]; then
+	neededpackages="$neededpackages ccache"
+    fi
+    if [ "$quilt" -eq 1 ]; then
+	neededpackages="$neededpackages quilt"
+    fi
+}
+
+installpackages()
+{
+    local logfile
+    local instlog
+    logfile="$buildroot/.y2log"
+    instlog="$buildroot/.y2logRPM"
+    y2pmshcmds="$buildroot/.y2pmshcmds"
+    > "$logfile"
+    > "$instlog"
+    cat > "$y2pmshcmds" <<-EOF
+	set root $buildroot
+	set logfile $logfile
+	set instlog $instlog
+	set quitonfail 1
+	set verbose 1
+	EOF
+
+    regenrepository
+
+    addsourcesfromrepository >> "$y2pmshcmds"
+	
+    cat >> "$y2pmshcmds" <<-EOF
+	set debug $builddebugsolve
+	buildsolve $neededpackages $defaultpackages
+	set debug 0
+	summary
+	commit
+	EOF
+
+    # don't restart daemons etc.
+    export YAST_IS_RUNNING=instsys
+
+    y2pmsh < "$y2pmshcmds"
+}
+
+setuptimezone()
+{
+    # FIXME sucks
+    if [ -e "$buildroot/usr/sbin/zic" ]; then
+	chroot "$buildroot" su - -c "/usr/sbin/zic -l GMT"
+    else
+	install -m 755 -d "$buildroot/etc"
+	install -m 644 /etc/localtime "$buildroot/etc/localtime"
+    fi
+}
+
+runsuseconfig()
+{
+    echo "SuSEconfig ..."
+    chroot "$buildroot" su - -c /sbin/SuSEconfig
+}
+
+runldconfig()
+{
+    echo "ldconfig ..."
+    chroot "$buildroot" su - -c /sbin/ldconfig
+}
+
+copysourcestobuildroot()
+{
+    [ "$buildroot" = / ] && return 1
+    
+    rm -rf "$buildroot"/usr/src/packages
+
+    for i in BUILD RPMS/`arch` RPMS/i386 RPMS/noarch SOURCES SPECS SRPMS; do
+	mkdir -p "$buildroot"/usr/src/packages/$i
+    done
+
+    find . \( -type f -or -type l \) -and -not -name '.*' -maxdepth 1 \
+	-print0 | \
+	xargs -0 -iXX cp -p XX "$buildroot"/usr/src/packages/SOURCES/
+}
+
+addbuilduser()
+{
+    if [ "$builduser" != "root" ]; then
+	if ! grep $builduser "$buildroot"/etc/passwd; then
+		echo adding user $builduser
+		chroot "$buildroot" useradd -m $builduser
+	fi
+	echo adjusting permissions
+	chroot "$buildroot" chown -R $builduser.root /usr/src/packages
+
+	echo 'export PATH=/sbin:/usr/sbin:$PATH' > "$buildroot"/etc/profile.d/build_path.sh
+    fi
+}
+
+setupccache()
+{
+    chroot "$buildroot" su - "$builduser" -c "ls -ld ~$builduser"
+    if [ "$ccache" = 1 ]; then
+	chroot "$buildroot" su - "$builduser" -c "mkdir -p ~$builduser/bin && for i in gcc g++ cc c++; do ln -sf /usr/bin/ccache ~$builduser/bin/\$i; done"
+	mkdir -p "$buildroot"/.ccache
+	chroot "$buildroot" chown -R "$builduser" "/.ccache"
+	echo "export CCACHE_DIR=/.ccache" > "$buildroot"/etc/profile.d/build_ccache.sh
+    else
+	chroot "$buildroot" su - -c "rm -f ~$builduser/bin/{gcc,g++,cc,c++}"
+    fi
+    chroot "$buildroot" su - "$builduser" -c "ls -ld ~$builduser"
+}
+
+determinerpmversion()
+{
+    local a
+    local b
+    local ver
+    read a b ver < <(chroot "$buildroot" rpm --version)
+    case "$ver" in
+	3*) rpmbuild=rpm ;;
+    esac
+}
+
+mountfilesystems()
+{
+    mkdir -p $buildroot/proc
+    mkdir -p $buildroot/dev/pts
+    pwd
+    mount -oro -n -tproc proc $buildroot/proc
+    mount -n -tdevpts none $buildroot/dev/pts
+}
+
+parsecmdline()
+{
+    shortopts=
+    longopts=ccache,root,no-init,quilt
+    getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
+	 -n 'y2pmbuild' -- "$@"`
+
+    if [ $? != 0 ] ; then echo "error parsing command line options" >&2 ; exit 1 ; fi
+
+    eval set -- "$getopt_tmp"
+
+    while true ; do
+	case "$1" in
+	    --ccache) ccache=1 ; shift ;;
+	    --quilt) quilt=1 ; shift ;;
+	    --root) builduser=root ; shift ;;
+	    --no-init) doinit=0 ; shift ;;
+	    --) shift ; break ;;
+	    *) echo "error parsing command line options" ; exit 1 ;;
+	esac
+    done
+}
+
+
+set -e
+
+unset ${!LC_*}
+export LANG=POSIX
+
+parsecmdline "$@"
+
+if [ "$buildroot" = / -o -z "$buildroot" ]; then
+    echo "invalid build root: $buildroot" >&2
+    exit 1
+fi
+
+mkdir -p "$buildroot"
+
+if [ -e "$buildroot/.locked" ]; then
+    echo -n "$buildroot locked by pid " >&2
+    cat "$buildroot/.locked" >&2
+    exit 1
+fi
+
+echo $$ > "$buildroot/.locked"
+
+trap cleanup EXIT
+
+rm -f $buildroot/.build.log
+exec > >(tee $buildroot/.build.log) 2>&1
+
+shopt -s nullglob
+specfiles=`echo *.spec`
+
+if [ -z "$specfiles" ]; then
+    echo "no spec files found" >&2
+    exit 1
+fi
+
+for spec in "$specfiles"; do
+
+    echo -n "start $spec at " >> "$buildroot/.build.packages"
+    date >> "$buildroot/.build.packages"
+
+    parse_spec $spec
+
+    getneededforbuild
+
+    mountfilesystems
+
+    if [ "$doinit" -eq 1 ]; then
+	setuptimezone
+	installpackages
+	runsuseconfig
+	runldconfig
+    fi
+
+    copysourcestobuildroot
+
+    addbuilduser
+
+    setupccache
+
+    determinerpmversion
+
+    echo sync ... 
+    sync
+    echo -----------------------------------------------------------------
+    echo "----- building $spec (user $builduser)"
+    echo -----------------------------------------------------------------
+    echo -----------------------------------------------------------------
+
+    rpmbuildstage=-ba
+
+    chroot "$buildroot" su - $builduser -c "$rpmbuild $rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
+
+    success=1;
+    echo -n "done $spec at " >> "$buildroot/.build.packages"
+    date >> "$buildroot/.build.packages"
+
+    copyfilestorepository
+
+done
+
+# vim:sw=4

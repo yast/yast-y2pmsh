@@ -1,0 +1,31 @@
+#!/bin/bash
+
+if [ -z "$tried_to_get_root" ]; then
+        export tried_to_get_root="$LOGNAME"
+        exec sudo "$0" "$@"
+        exit 1
+fi
+
+if [ -z "$tried_to_get_root" ]; then
+        echo "unable to find a sane LOGNAME"
+        exit 1
+fi
+
+if [ -z "$BUILD_DIST" ]; then
+        ver=""
+        arch=`uname -m`
+
+        case "$arch" in
+                i?86) arch=i386;;
+        esac
+
+        case "$0" in
+                *build-*) ver=${0#*build-}-;;
+        esac
+
+        [ -n "$ver" ] && export BUILD_DIST="$ver$arch"
+fi
+
+export LOGNAME=$tried_to_get_root
+
+exec y2pmbuild "$@"
