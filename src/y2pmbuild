@@ -28,7 +28,9 @@ if [ -z "$buildroot" ]; then
     [ -n "$BUILD_DIST" ] && buildroot="$buildroot.$BUILD_DIST"
 fi
 
-defaultpackages="fillup attr acl aaa_base filesystem autoconf automake bash binutils bison bzip2 cpio cpp cracklib cyrus-sasl db devs diffutils e2fsprogs file findutils flex gawk gcc gdbm gdbm-devel gettext glibc glibc-devel glibc-locale gpm grep groff gzip kbd less libgcc libstdc++ libtool libxcrypt zlib m4 make man mktemp modutils ncurses ncurses-devel net-tools netcfg pam pam-devel pam-modules patch perl permissions ps rcs readline rpm sed sendmail shadow strace syslogd sysvinit tar texinfo timezone unzip util-linux vim zlib-devel pwdutils"
+if [ -z "$defaultpackages" ]; then
+    defaultpackages="fillup attr acl aaa_base filesystem autoconf automake bash binutils bison bzip2 cpio cpp cracklib cyrus-sasl db devs diffutils e2fsprogs file findutils flex gawk gcc gdbm gdbm-devel gettext glibc glibc-devel glibc-locale gpm grep groff gzip kbd less libgcc libstdc++ libtool libxcrypt zlib m4 make man mktemp modutils ncurses ncurses-devel net-tools netcfg pam pam-devel pam-modules patch perl permissions ps rcs readline rpm sed sendmail shadow strace syslogd sysvinit tar texinfo timezone unzip util-linux vim zlib-devel pwdutils"
+fi
 
 neededpackages=
 
@@ -238,7 +240,7 @@ addbuilduser()
     if [ "$builduser" != "root" ]; then
 	if ! grep $builduser "$buildroot"/etc/passwd; then
 		echo adding user $builduser
-		chroot "$buildroot" useradd -m $builduser
+		chroot "$buildroot" /usr/sbin/useradd -m $builduser
 	fi
 	echo adjusting permissions
 	chroot "$buildroot" chown -R $builduser.root /usr/src/packages
