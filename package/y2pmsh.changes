@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Thu Oct 14 17:38:41 CEST 2004 - lnussel@suse.de
+
+- add icecream support to y2pmbuild
+- add --help parameter to y2pmbuild
+- 2.11.2
+
+-------------------------------------------------------------------
 Wed Oct 13 16:27:47 CEST 2004 - lnussel@suse.de
 
 - add sourceorder command for setting the installation order for

@@ -271,16 +271,32 @@ setupccache()
 
 setupicecream()
 {
-    [ "$icecream" -eq 0 ] && return
+    if [ "$icecream" -eq 0 ]; then
+	rm -rf $buildroot/var/run/icecream
+	return
+    fi
     
     echo "using icecream with $icecream jobs"
 
     echo 'export PATH=/opt/icecream/bin:$PATH' >> "$buildroot"/etc/profile.d/build_path.sh
-
-    rm -rf $buildroot/var/run/icecream
-    mkdir -p $buildroot/var/run/icecream
-    chroot $buildroot bash -c 'cd /var/run/icecream; /usr/bin/create-env'
+    
     local icecc_vers=`cd $buildroot; ls -1 var/run/icecream/*.tar.bz2`
+
+    # only run create-env if compiler or glibc changed
+    if [ -z "$icecc_vers" \
+	-o ! -e "$buildroot/$icecc_vers" \
+	-o "$buildroot/usr/bin/gcc" -nt "$buildroot/$icecc_vers" \
+	-o "$buildroot/usr/bin/g++" -nt "$buildroot/$icecc_vers" \
+	-o "$buildroot/usr/bin/as" -nt "$buildroot/$icecc_vers" \
+	-o "$buildroot/lib/libc.so.6" -nt "$buildroot/$icecc_vers" ]
+    then
+	rm -rf $buildroot/var/run/icecream
+	mkdir -p $buildroot/var/run/icecream
+	chroot $buildroot bash -c 'cd /var/run/icecream; /usr/bin/create-env'
+	icecc_vers=`cd $buildroot; ls -1 var/run/icecream/*.tar.bz2`
+    else
+	echo "reusing existing icecream environment /$icecc_vers"
+    fi
     echo "export ICECC_VERSION=/$icecc_vers" >> "$buildroot"/etc/profile.d/build_path.sh
 }
 
@@ -304,10 +320,30 @@ mountfilesystems()
     mount -n -tdevpts none $buildroot/dev/pts
 }
 
+helpandquit()
+{
+    cat <<EOF
+Usage: $0 [OPTIONS]
+
+y2pmbuild rebuilds all .spec files in the current directory
+    
+OPTIONS:
+    --ccache		use ccache to speed up rebuilds
+    --icecream=N	use N parallel build jobs with icecream
+    --jobs=N		use N parallel build jobs
+    --quilt		install quilt
+    --no-init		do not install any packages, just start compiling
+    --no-copy-repo	if called with repository, don't copy to repository
+    --help		this screen
+
+EOF
+    exit 0
+}
+
 parsecmdline()
 {
     shortopts=
-    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo
+    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
 	 -n 'y2pmbuild' -- "$@"`
 
@@ -324,6 +360,7 @@ parsecmdline()
 	    --root) builduser=root ; shift ;;
 	    --no-init) doinit=0 ; shift ;;
 	    --no-copy-repo) no_copy_repo=1 ; shift ;;
+	    --help) helpandquit ;;
 	    --) shift ; break ;;
 	    *) echo "error parsing command line options" ; exit 1 ;;
 	esac
