@@ -72,6 +72,10 @@ static int show_internal(vector<string>& argv, PMManager& manager, bool selectio
 
     enum { any, inst, cand, list } whichone = any;
     bool verbose = false;
+    bool show_provides = false;
+    bool show_requires = false;
+    bool show_obsoletes = false;
+    bool show_conflicts = false;
 
     if(it == argv.end() || *it == "--help")
     {
@@ -81,6 +85,11 @@ static int show_internal(vector<string>& argv, PMManager& manager, bool selectio
 	h.Parameter(HelpScreenParameter("-i","", "show installed object"));
 	h.Parameter(HelpScreenParameter("-c","", "show candidate object"));
 	h.Parameter(HelpScreenParameter("-l","", "list installed/candidate/available"));
+	h.Parameter(HelpScreenParameter("","--deps", "list all dependencies"));
+	h.Parameter(HelpScreenParameter("","--provides", "list provides"));
+	h.Parameter(HelpScreenParameter("","--requires", "list requires"));
+	h.Parameter(HelpScreenParameter("","--obsoletes", "list obsoletes"));
+	h.Parameter(HelpScreenParameter("","--conflicts", "list conflicts"));
 	cout << h;
 	return 0;
     }
@@ -103,9 +112,30 @@ static int show_internal(vector<string>& argv, PMManager& manager, bool selectio
 	{
 	    verbose = true;
 	}
+	else if(*it == "--deps")
+	{
+	    show_provides = show_requires = show_obsoletes = show_conflicts = true;
+	}
+	else if(*it == "--provides")
+	{
+	    show_provides = true;
+	}
+	else if(*it == "--requires")
+	{
+	    show_requires = true;
+	}
+	else if(*it == "--obsoletes")
+	{
+	    show_obsoletes = true;
+	}
+	else if(*it == "--conflicts")
+	{
+	    show_conflicts = true;
+	}
 	else
 	{
 	    cout << "invalid parameter " << *it << endl;
+	    return 1;
 	}
     }
 
@@ -164,8 +194,44 @@ static int show_internal(vector<string>& argv, PMManager& manager, bool selectio
 
 	    if(!obj) { cerr << "Object " << *it << " is NULL" << endl; continue; }
 
-	    if (selection)
+	    if(show_requires || show_provides || show_obsoletes || show_requires)
+	    {
+		cout << obj->nameEd() << ": " << endl;
+		PMSolvable::PkgRelList_type::const_iterator it;
+
+		if(show_provides)
+		{
+		    cout << "  Provides:\n";
+		    cout << "    " << obj->self_provides() << '\n';
+		    for(it = obj->provides_begin(); it != obj->provides_end(); ++it)
+			cout << "    " << *it << '\n';
+		}
+
+		if(show_requires)
+		{
+		    cout << "  Requires:\n";
+		    for(it = obj->requires_begin(); it != obj->requires_end(); ++it)
+			cout << "    " << *it << '\n';
+		}
+
+		if(show_obsoletes)
+		{
+		    cout << "  Obsoletes:\n";
+		    for(it = obj->obsoletes_begin(); it != obj->obsoletes_end(); ++it)
+			cout << "    " << *it << '\n';
+		}
+
+		if(show_conflicts)
+		{
+		    cout << "  Conflicts:\n";
+		    for(it = obj->conflicts_begin(); it != obj->conflicts_end(); ++it)
+			cout << "    " << *it << '\n';
+		}
+	    }
+	    else if (selection)
+	    {
 		show_pmselection(obj);
+	    }
 	    else
 	    {
 		if(verbose)
