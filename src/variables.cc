@@ -14,6 +14,8 @@ using namespace std;
 #ifdef SUSE90COMPAT
 #define set_log_filename Y2Logging::setLogfileName
 #define get_log_filename Y2Logging::getLogfileName
+static inline void set_log_debug(bool f) {};
+static inline bool get_log_debug() { return false };
 #endif
 
 VariableMap variables;
@@ -103,6 +105,8 @@ static const char* setdebug(const Variable& v)
 	cout << "debug disabled" << endl;
 	Y2SLog::dbg_enabled_bm = false;
     }
+
+    set_log_debug(Y2SLog::dbg_enabled_bm);
 
     return NULL;
 }
@@ -314,7 +318,11 @@ static const char* cachetoramdisk(const Variable& v)
 
 void init_variables()
 {
-    variables["debug"] = Variable("0",false,setdebug);
+    // this also initializes logging
+    variables["logfile"] = Variable(get_log_filename().c_str(),false,logfilevalidate);
+    vardesc["logfile"] = "set log file";
+
+    variables["debug"] = Variable((get_log_debug()?"1":"0"),false,setdebug);
     vardesc["debug"] = "whether to enable debug messages";
     variables["verbose"] = Variable("0",false);
     vardesc["verbose"] = "certain commands display more info if >0, >1 etc.";
@@ -328,9 +336,6 @@ void init_variables()
     vardesc["quitoncommit"] = "quit after packages are commited";
     variables["quitonfail"] = Variable("0",false);
     vardesc["quitonfail"] = "quit if a command failed";
-
-    variables["logfile"] = Variable(get_log_filename().c_str(),false,logfilevalidate);
-    vardesc["logfile"] = "set log file";
 
     variables["instlog"] = Variable("",false,instlogvalidate);
     vardesc["instlog"] = "set installation log file";
