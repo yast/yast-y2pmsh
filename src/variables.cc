@@ -15,7 +15,7 @@ using namespace std;
 #define set_log_filename Y2Logging::setLogfileName
 #define get_log_filename Y2Logging::getLogfileName
 static inline void set_log_debug(bool f) {};
-static inline bool get_log_debug() { return false };
+static inline bool get_log_debug() { return false; };
 #endif
 
 VariableMap variables;
