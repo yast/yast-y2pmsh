@@ -16,3 +16,7 @@ stamp-h1
 config.status
 config.h
 config.h.in
+configure.in
+config.sub
+config.guess
+Makefile.am.common

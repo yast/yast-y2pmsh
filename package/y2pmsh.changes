@@ -1,0 +1,30 @@
+-------------------------------------------------------------------
+Tue Mar  2 18:09:19 CET 2004 - lnussel@suse.de
+
+- tab completion for package names
+- fall back to shellmode if a command specified on the command line failed
+- don't regenerate repository at start of build in y2pmbuild
+- add whatprovides function
+
+-------------------------------------------------------------------
+Sat Feb 28 17:19:14 CET 2004 - ro@suse.de
+
+- added openslp to neededforbuild
+
+-------------------------------------------------------------------
+Sat Feb 14 18:49:42 CET 2004 - lnussel@suse.de
+
+- rename showproducts -> products
+- fix whatdependson function to honor self-provides
+- add depends function
+
+-------------------------------------------------------------------
+Fri Jan 30 14:39:31 CET 2004 - lnussel@suse.de
+
+- set YAST_IS_RUNNING properly
+
+-------------------------------------------------------------------
+Thu Jan 29 23:55:22 CET 2004 - lnussel@suse.de
+
+- initial package
+

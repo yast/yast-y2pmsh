@@ -1,12 +1,4 @@
-#                                               -*- Autoconf -*-
-# Process this file with autoconf to produce a configure script.
-
-AC_PREREQ(2.57)
-AC_INIT(y2pmsh, 0.4, ludwig.nussel@suse.de)
-AC_CONFIG_SRCDIR([src/build.cc])
-
-AM_INIT_AUTOMAKE
-AM_CONFIG_HEADER([config.h])
+@YAST2-INIT-COMMON@
 
 # Checks for programs.
 AC_PROG_CXX
@@ -44,7 +36,8 @@ if test ! -d $tecladir; then
 	AC_MSG_ERROR([need libtecla (http://www.astro.caltech.edu/~mcs/tecla/index.html) to compile])
 fi
 
-AC_CONFIG_FILES([Makefile config/Makefile patches-9.0/Makefile src/Makefile])
-AC_OUTPUT
+dnl AC_CONFIG_FILES([Makefile config/Makefile patches-9.0/Makefile src/Makefile])
+
+@YAST2-OUTPUT@
 
 AC_MSG_NOTICE([*** you need to "make -C $tecladir" first ***])
