@@ -162,9 +162,8 @@ bool Y2PMSH::targetinit(string root)
     }
 
     Y2PM::instTarget().createPackageBackups(variables["createbackups"].getBool());
-    if(variables["cachetodisk"].getBool() == false)
+    if(variables["runningfromsystem"].getBool() == false)
     {
-	Y2PM::setCacheToRamdisk(false);
 	Y2PM::setNotRunningFromSystem();
     }
 

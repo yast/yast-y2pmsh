@@ -317,17 +317,15 @@ static const char* createbackups(const Variable& v)
     return NULL;
 }
 
-static const char* cachetoramdisk(const Variable& v)
+static const char* runningfromsystem(const Variable& v)
 {
     if(!v.isBool()) return "must be Bool";
 
     if(v.getBool() == false)
     {
-	Y2PM::setCacheToRamdisk(false);
 	Y2PM::setNotRunningFromSystem();
     }
 
-    cout << "cache to ramdisk " << (Y2PM::cacheToRamdisk()?"enabled":"disabled") << endl;
     cout << "running from system " << (Y2PM::runningFromSystem()?"yes":"no") << endl;
     if(v.getBool() == false)
     {
@@ -367,8 +365,8 @@ void init_variables()
 	    pkginstflags2stings(Y2PM::instTarget().getPkgInstFlags()),false,instflags);
     vardesc["pkginstflags"] = "rpm parameters used for installation";
 
-    variables["cachetodisk"] =  Variable("1",false,cachetoramdisk);
-    vardesc["cachetodisk"] = "do not read instsources. do not save instsources to disk";
+    variables["runningfromsystem"] =  Variable("1",false,runningfromsystem);
+    vardesc["runningfromsystem"] = "behave somewhat like an initial installation";
 
     const char* msg = Variable::assign(variables["instlog"], "/var/log/YaST2/y2logRPM");
     if(msg)
