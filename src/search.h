@@ -12,5 +12,7 @@ int depends(std::vector<std::string>& argv);
 int newer(std::vector<std::string>& argv);
 //int query(std::vector<std::string>& argv);
 int alternatives(std::vector<std::string>& argv);
+int whatconflictswith(std::vector<std::string>& argv);
+int allconflicts(std::vector<std::string>& argv);
 
 #endif
