@@ -17,8 +17,8 @@
 
 /-*/
 
-#undef Y2SLOG
-#define Y2SLOG "y2pmsh"
+#undef Y2LOG
+#define Y2LOG "y2pmsh"
 
 #include <cstdlib> //atoi
 #include <fstream>
@@ -48,6 +48,7 @@
 #include <malloc.h>
 #include <locale.h>
 #include <signal.h>
+#include <fnmatch.h>
 
 #include "variable.h"
 #include "variables.h"
@@ -89,6 +90,7 @@ int commit(vector<string>& argv);
 int mem(vector<string>& argv);
 int checkpackage(vector<string>& argv);
 int isc(vector<string>& argv);
+int quit(vector<string>& argv);
 
 int testset(vector<string>& argv);
 int testmediaorder(vector<string>& argv);
@@ -433,30 +435,185 @@ class PackageCompleter : public CmdLineIface::Completer
 	}
 };
 
+class PackageWordExpander : public Command::WordExpander
+{
+    public:
+	typedef std::vector<std::string> Words;
+
+    protected:
+	class CheckSkipPackage
+	{
+	    public:
+		virtual ~CheckSkipPackage() {};
+		virtual bool operator() (PMSelectablePtr p)
+		{
+		    return false;
+		}
+	};
+
+	class MatchPackage
+	{
+	    private:
+		const string& _pattern;
+		Words& _words;
+		CheckSkipPackage& _skip;
+		bool& _havematch;
+
+	    public:
+		MatchPackage(const string& pattern, Words& words, CheckSkipPackage& skip, bool& havematch)
+		    : _pattern(pattern), _words(words), _skip(skip), _havematch(havematch)
+		{
+		}
+
+		void operator()(PMSelectablePtr p)
+		{
+		    if(_skip(p))
+			return;
+
+		    const char* name = p->name().asString().c_str();
+
+		    if(::fnmatch(_pattern.c_str(), name, 0) == 0)
+		    {
+			_words.push_back(p->name());
+			_havematch = true;
+		    }
+		}
+	};
+
+	class ExpandWord
+	{
+	    private:
+		Words& _words;
+		CheckSkipPackage& _skip;
+		
+	    public:
+		ExpandWord(Words& words, CheckSkipPackage& skip) : _words(words), _skip(skip) {};
+		void operator()(const std::string& word)
+		{
+		    bool havematch = false;
+		    for_each(
+			Y2PM::packageManager().begin(),
+			Y2PM::packageManager().end(),
+			MatchPackage(word, _words, _skip, havematch));
+
+		    if(!havematch)
+			_words.push_back(word);
+		}
+	};
+
+	CheckSkipPackage _skip;
+	/** return package skip object */
+	virtual CheckSkipPackage& skipper()
+	{
+	    return _skip;
+	}
+
+    public:
+	PackageWordExpander() : WordExpander() {}
+	virtual ~PackageWordExpander() {}
+	virtual std::vector<std::string> operator()(const std::vector<std::string>& words)
+	{
+	    Words out;
+
+	    if(!y2pmsh.initialized())
+		return out;
+
+	    if(words.begin() == words.end())
+		return words;
+
+	    out.push_back(*words.begin());
+	    CheckSkipPackage& skip = skipper();
+	    for_each(words.begin()+1, words.end(), ExpandWord(out, skip));
+
+	    return out;
+	}
+};
+
+class CandidatePackageWordExpander : public PackageWordExpander
+{
+    protected:
+	/** check whether installed package is older and can be upgraded */
+	class SkipNoCandidates : public CheckSkipPackage
+	{
+	    public:
+		virtual ~SkipNoCandidates() {};
+		// return true if package should be skipped
+		virtual bool operator() (PMSelectablePtr p)
+		{
+		    if(!p->has_candidate())
+			return true;
+		    else
+			return false;
+		}
+	};
+
+	SkipNoCandidates _skip;
+	virtual CheckSkipPackage& skipper()
+	{
+	    return _skip;
+	}
+    public:
+	CandidatePackageWordExpander() : PackageWordExpander() {}
+	virtual ~CandidatePackageWordExpander() {}
+};
+
+class InstalledPackageWordExpander : public PackageWordExpander
+{
+    protected:
+	/** check whether package is installed */
+	class SkipNotInstalledPackage : public CheckSkipPackage
+	{
+	    public:
+		virtual ~SkipNotInstalledPackage() {};
+		// skip not installed packages
+		virtual bool operator() (PMSelectablePtr p)
+		{
+		    if(p->has_installed())
+			return false;
+		    else
+			return true;
+		}
+	};
+
+	SkipNotInstalledPackage _skip;
+	virtual CheckSkipPackage& skipper()
+	{
+	    return _skip;
+	}
+    public:
+	InstalledPackageWordExpander() : PackageWordExpander() {}
+	virtual ~InstalledPackageWordExpander() {}
+};
+
+
 void init_commands()
 {
 #define newcmd(a,b,c,d) y2pmsh.cmd.add(new Command(a,b,c,d))
 #define newpkgcmd(a,b,c,d) newcmd(a,b,c,d); y2pmsh.cli().registerCompleter(new PackageCompleter(a));
+#define newpkgcmdC(a,b,c,d) newpkgcmd(a,b,c,d); y2pmsh.cmd[a]->Expander(new CandidatePackageWordExpander());
+#define newpkgcmdI(a,b,c,d) newpkgcmd(a,b,c,d); y2pmsh.cmd[a]->Expander(new InstalledPackageWordExpander());
+#define newpkgcmdA(a,b,c,d) newpkgcmd(a,b,c,d); y2pmsh.cmd[a]->Expander(new PackageWordExpander());
+
 // flags: 1 = need init, 2 = hidden, 4 = advanced
-    newpkgcmd("install",	install, 1, "select packages for installation");
-    newpkgcmd("isc",	isc, 1, "install, solve and commit");
-    newpkgcmd("deselect",	deselect, 1, "deselect packages marked for installation/removal");
-    newpkgcmd("remove",	remove, 1, "select package for removal");
+    newpkgcmdC("install",	install, 1, "select packages for installation");
+    newpkgcmdC("isc",	isc, 1, "install, solve and commit");
+    newpkgcmdA("deselect",	deselect, 1, "deselect packages marked for installation/removal");
+    newpkgcmdI("remove",	remove, 1, "select package for removal");
     newcmd("solve",	solve, 1, "solve dependencies");
-    newpkgcmd("state",	state, 1, "show state of package(s)");
+    newpkgcmdA("state",	state, 1, "show state of package(s)");
     newcmd("newer",	newer, 1, "show packages with newer candiate available");
     newcmd("rpminstall",	rpminstall, 3, "install rpm files");
     newcmd("consistent",	consistent, 3, "check consistency");
     newcmd("set",		varset, 0, "set or show variable");
     newcmd("unset",	varunset, 0, "unset variable");
-    newpkgcmd("show",	show, 1, "show package info");
+    newpkgcmdA("show",	show, 1, "show package info");
     newcmd("search",	search, 1, "search for packages");
     newcmd("whatprovides",	whatprovides, 1, "search for package provides");
     newcmd("whatrequires",	whatrequires, 1, "search for package requirement");
-    newpkgcmd("whatdependson",	whatdependson, 1, "search for depending packages");
-    newpkgcmd("whatconflictswith", whatconflictswith, 1, "search for conflicting packages");
+    newpkgcmdA("whatdependson",	whatdependson, 1, "search for depending packages");
+    newpkgcmdA("whatconflictswith", whatconflictswith, 1, "search for conflicting packages");
     newpkgcmd("allconflicts", allconflicts, 1, "display all conflicting packages");
-    newpkgcmd("depends",	depends, 1, "search for depending packages");
+    newpkgcmdA("depends",	depends, 1, "search for depending packages");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
 //    newcmd("query",     query, 5, "query packagemanager");
     newcmd("source",	source, 0, "manage installation sources");
@@ -464,7 +621,7 @@ void init_commands()
     newcmd("_deletemediaatexit", _deletemediaatexit, 3, "delete all medias at exit");
     newcmd("buildsolve",	buildsolve, 3, "solve dependencies like the build script");
     newcmd("rebuilddb",	rebuilddb, 3, "rebuild rpm db");
-    newcmd("df",		df, 1, "display disk space forecast");
+    newcmd("df",	df, 1, "display disk space forecast");
     newcmd("selstate",	selstate, 1,  "show state of selection");
     newcmd("setappl",	setappl, 5, "set package to installed like a selection would do");
     newcmd("order",	order, 3, "compute installation order");
@@ -478,15 +635,26 @@ void init_commands()
     newcmd("selsolve",	solvesel, 1, "solve selection dependencies and apply state to packages");
     newcmd("cdattach",	cdattach, 2, "cdattach");
     newcmd("distrocheck", distrocheck, 7, "find unsatisfied dependencies among candidates");
-    newcmd("mem",		mem, 2, "memory statistics");
+    newcmd("mem",	mem, 2, "memory statistics");
     newcmd("testset",	testset, 2, "test memory consumption of PkgSet");
     newcmd("testmediaorder", testmediaorder, 3, "test media order");
     newcmd("init",	init, 1, "initialize packagemanager (happens automatically if needed)");
     newcmd("help",	help, 0, "this screen");
     newcmd("products", products, 1, "show installed products");
     newcmd("checkpackage", checkpackage, 6, "check rpm file signature");
+    newcmd("quit",	quit, 2, "quit");
+    newcmd("exit",	quit, 2, "exit");
+#undef newpkgcmdA
+#undef newpkgcmdI
+#undef newpkgcmdC
 #undef newpkgcmd
 #undef newcmd
+}
+
+int quit(vector<string>& argv)
+{
+    _keep_running = false;
+    return 0;
 }
 
 int df(vector<string>& argv)
@@ -578,20 +746,51 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
     PMManager::PMSelectableVec::iterator begin, end;
     PMManager::PMSelectableVec vec;
     int failed = 0;
+    bool installall = false;
+    bool force = false;
+    bool help = false;
 
-    if(argv.size()>1 && argv[1]=="-a")
+    vector<string>::iterator it;
+
+    if(argv.size() == 1)
     {
-	begin = Y2PM::packageManager().begin();
-	end = Y2PM::packageManager().end();
+	help = true;
     }
     else
     {
-	for (vector<string>::iterator it = ++argv.begin();
-		it != argv.end(); ++it)
+	for(it = argv.begin()+1;
+	    it != argv.end(); ++it)
+	{
+	    if(it->size() && (*it)[0] != '-') break;
+	    if(*it == "-h" || *it == "--help") help = true;
+	    if(*it == "-a" || *it == "--all") installall = true;
+	    if(*it == "-f" || *it == "--force") force = true;
+	}
+    }
+
+    if(help)
+    {
+	HelpScreen h(argv[0]);
+	h.additionalparams("PACKAGES");
+	h.Parameter(HelpScreenParameter("-a", "--all", "install/update all"));
+	h.Parameter(HelpScreenParameter("-f", "--force", "also perform downgrades and reinstallations"));
+	cout << h;
+	return 0;
+    }
+
+    if(installall)
+    {
+	begin = manager.begin();
+	end = manager.end();
+    }
+    else
+    {
+	for (; it != argv.end(); ++it)
 	{
 	    string pkg = stringutil::trim(*it);
 
 	    if(pkg.empty()) continue;
+	
 
 	    PMSelectablePtr selp = manager.getItem(pkg);
 	    if(!selp || !selp->has_candidate())
@@ -610,6 +809,16 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
     {
 	bool ok;
 
+	if(!(*it)->has_candidate())
+	    continue;
+
+	if(!force && (*it)->downgrade_condition())
+	{
+	    if(!installall)
+		cout << "not downgrading " << (*it)->name() << endl;
+	    continue;
+	}
+
 	if(appl)
 	    ok = (*it)->appl_set_install();
 	else
@@ -622,6 +831,10 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
 	    failed = 2;
 	}
     }
+
+    PrintSelectable::Flags flags;
+    flags.summary=true;
+    for_each(begin,end,PrintSelectable(cout, flags));
 
     return failed;
 }
@@ -711,8 +924,8 @@ static bool solve_internal(PMManager& manager, vector<string>& argv)
     success = manager.solveInstall(good, bad, filter);
 
 
-    numbad = printbadlist(bad);
     numinst = printgoodlist(good);
+    numbad = printbadlist(bad);
 
     cout << "***" << endl;
     cout << numbad << " bad, " << numinst << " to install" << endl;
@@ -981,6 +1194,29 @@ int deselect(vector<string>& argv)
     return failed;
 }
 
+int taboo(vector<string>& argv)
+{
+    int failed = 0;
+    for (unsigned i=1; i < argv.size() ; i++)
+    {
+	string pkg = stringutil::trim(argv[i]);
+
+	if(pkg.empty()) continue;
+
+	PMSelectablePtr selp = Y2PM::packageManager().getItem(pkg);
+	if(!selp)
+	{
+	    std::cout << "package " << pkg << " is not available.\n";
+	    failed = 1;
+	    continue;
+	}
+
+	selp->setNothingSelected();
+    }
+
+    return failed;
+}
+
 int rpminstall(vector<string>& argv)
 {
     vector<string>::iterator it=argv.begin();
@@ -1012,8 +1248,14 @@ int mem(vector<string>& argv)
 int cdattach(vector<string>& argv)
 {
     MediaAccessPtr media = new MediaAccess;
+    string dev;
 
-    Url mediaurl_r = (string("cd:///;") + argv[1]);
+    if(argv.size() > 1)
+    {
+	dev = argv[1];
+    }
+
+    Url mediaurl_r = (string("cd:///;") + dev);
 
 
     PMError err;
@@ -1025,21 +1267,22 @@ int cdattach(vector<string>& argv)
 
     DBG << "open ok" << endl;
     bool repeat = true;
-    bool notfirst =false;
+    bool notfirst = false;
     do
     {
 	if(media->isAttached())
 	{
-	    DBG << "release medium" << endl;
-	    cout << media->release() << endl;
+	    cout << "release medium " << media->release() << endl;
 	}
-	DBG << "attach medium" << endl;
+	cout << "try attach medium " << endl;
 	if ( (err = media->attach(notfirst)) )
 	{
-	    ERR << "Failed to attach media: " << err << endl;
+	    cout << "Failed to attach media: " << err << endl;
 	    repeat = false;
 	    return 1;
 	}
+	else
+	    cout << "attach ok" << endl;
 	notfirst = true;
     } while (repeat);
 
@@ -1088,9 +1331,17 @@ void installsignalhandlers(void)
 
 int main( int argc, char *argv[] )
 {
+    bool noinit = false;
     bool cliok = true;
 
     int mainret = 0;
+    
+    if(argc > 1 && string(argv[1]) == "--no-init")
+    {
+	noinit = true;
+	++argv;
+	--argc;
+    }
 
     if(argc > 1)
 	y2pmsh.shellmode(false);
@@ -1111,7 +1362,10 @@ int main( int argc, char *argv[] )
 
     if(y2pmsh.shellmode() && y2pmsh.interactive())
     {
-	cout << "type help for help, ^D to exit" << endl << endl;
+	if(!noinit)
+	    mainret = y2pmsh.init(nullvector);
+
+	cout << endl << "type help for help, ^D to exit" << endl << endl;
     }
 
     installsignalhandlers();
@@ -1182,7 +1436,7 @@ int main( int argc, char *argv[] )
 		vit != cmds.end() && _keep_running; ++vit)
 	{
 	    vector<string> argv = *vit;
-	    const Command* cmdptr = NULL;
+	    Command* cmdptr = NULL;
 
 	    cmdptr = y2pmsh.cmd[argv[0]];
 
@@ -1197,6 +1451,14 @@ int main( int argc, char *argv[] )
 		    if(showtimes) t.stopTimer();
 		    if(showtimes) cout << "time: " << t << endl;
 		}
+
+		if(cmdptr->hasExpander())
+		{
+		    argv = cmdptr->Expander()(argv);
+		}
+
+//		for_each(argv.begin(), argv.end(), Print(cout, "'%s' "));
+//		cout << endl;
 
 		if(showtimes) t.startTimer();
 		mainret = cmdptr->run(argv);

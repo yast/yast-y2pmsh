@@ -22,8 +22,14 @@
 using namespace std;
 
 Command::Command(const char* name, CommandFunc func, unsigned flags, const char* help)
-    : _name(name), _func(func), _help(help), _flags(flags)
+    : _name(name), _func(func), _help(help), _flags(flags), _expander(NULL)
 {
+}
+
+Command::~Command()
+{
+    if(_expander)
+	delete _expander;
 }
 
 const std::string& Command::name() const
@@ -51,6 +57,27 @@ int Command::run(std::vector<std::string>& argv) const
     return _func(argv);
 }
 
+void Command::Expander(WordExpander* e)
+{
+    if(_expander)
+	delete _expander;
+
+    _expander = e;
+}
+
+Command::WordExpander& Command::Expander()
+{
+    if(!_expander)
+	_expander = new WordExpander();
+
+    return *_expander;
+}
+
+bool Command::hasExpander()
+{
+    return (_expander != NULL);
+}
+
 Commands::Commands()
 {
 }
@@ -65,7 +92,7 @@ Commands::~Commands()
     }
 }
 
-void Commands::add(const Command* cmd)
+void Commands::add(Command* cmd)
 {
     if(!cmd) return;
     _commands[cmd->name()] = cmd;
@@ -94,7 +121,7 @@ std::vector<std::string> Commands::startswith(std::string str) const
     return res;
 }
 
-const Command* Commands::operator[](const std::string& str)
+Command* Commands::operator[](const std::string& str)
 {
     const_iterator it = _commands.find(str);
     if(it == end()) return NULL;
@@ -120,11 +147,14 @@ bool Y2PMSH::initialized()
     return _initialized;
 }
 
-bool Y2PMSH::targetinit()
+bool Y2PMSH::targetinit(string root)
 {
     cout << "reading installed packages ..." << flush;
 
-    PMError err = Y2PM::instTargetInit(variables["root"].getString());
+    if(root.empty())
+	root = variables["root"].getString();
+	
+    PMError err = Y2PM::instTargetInit(root);
 
     cout << err << endl;
 

@@ -134,7 +134,7 @@ static const char* setroot(const Variable& v)
     y2pmsh.setenv(v.getString() != "/");
 
     if(y2pmsh.initialized())
-	y2pmsh.targetinit();
+	y2pmsh.targetinit(v.getString());
 
     return NULL;
 }

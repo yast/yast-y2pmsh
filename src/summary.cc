@@ -1,4 +1,5 @@
 #include <fstream>
+#include <algorithm>
 
 #include <y2util/Y2SLog.h>
 
@@ -14,17 +15,134 @@ using namespace std;
 
 static const char* statestr[] = { "@i", "--", " -", " >", " +", "a-", "a>", "a+", " i", "  " };
 
+PrintSelectable::Flags::Flags()
+    : onlyinstalled(false), onlychanged(false), summary(false), version(true)
+{
+}
+
+PrintSelectable::PrintSelectable(std::ostream& os, PrintSelectable::Flags flags) : _os(os), _flags(flags)
+{
+}
+
+void PrintSelectable::operator()(PMSelectablePtr sptr)
+{
+    PMSelectable::UI_Status s = sptr->status();
+
+    if(_flags.onlyinstalled && !sptr->has_installed())
+	return;
+    
+    switch(s)
+    {
+	case PMSelectable::S_Protected:
+	case PMSelectable::S_Taboo:
+	case PMSelectable::S_Del:
+	case PMSelectable::S_Update:
+	case PMSelectable::S_Install:
+	case PMSelectable::S_AutoDel:
+	case PMSelectable::S_AutoUpdate:
+	case PMSelectable::S_AutoInstall:
+	case PMSelectable::S_KeepInstalled:
+	case PMSelectable::S_NoInst:
+
+	if(_flags.onlychanged && !sptr->to_modify())
+	    return;
+
+	_os << statestr[s] << "   " << sptr->name();
+
+	PMSelectionPtr selp=sptr->theObject();
+	if(selp)
+	{
+	    _os << "  ";
+	    if(selp->visible())
+		_os << " +";
+	    _os << selp->category();
+	}
+	else
+	{
+	    if(_flags.version)
+	    {
+		_os << " (";
+		if(sptr->has_installed())
+		{
+		    _os << sptr->installedObj()->edition();
+
+		    if(sptr->to_install())
+		    {
+			if(sptr->downgrade_condition())
+			{
+			    _os << " -< ";
+			}
+			else
+			{
+			    _os << " -> ";
+			}
+		    }
+		    else if(sptr->has_candidate())
+		    {
+			_os << " / ";
+		    }
+		}
+		if(sptr->has_candidate())
+		{
+		    if(sptr->downgrade_condition())
+			_os << "_";
+		    _os << sptr->candidateObj()->edition();
+		}
+		_os << ')';
+	    }
+	}
+
+	if(_flags.summary)
+	{
+	    _os << " - " << sptr->theObject()->summary();
+	}
+	
+	_os << endl;
+    }
+}
+
+class SetTaboo
+{
+    private:
+	bool _reset;
+    public:
+	SetTaboo(bool reset) : _reset(reset) {}
+	void operator()(PMSelectablePtr p)
+	{
+	    if(_reset)
+	    {
+		if(!p->is_taboo() || !p->user_clr_taboo())
+		{
+		    cout << "can't set package " << p->name() << " to taboo" << endl;
+		}
+	    }
+	    else
+	    {
+		if(!p->user_set_taboo())
+		{
+		    cout << "can't set package " << p->name() << " to taboo" << endl;
+		}
+	    }
+	}
+};
+
 static int showstate_internal(PMManager& manager, vector<string>& argv)
 {
-    bool nonone = true;
-    bool changed = false;
     bool showall = true;
+    
+    PrintSelectable::Flags flags;
+    flags.version = true;
+    flags.onlyinstalled = true;
+
+    enum statechange { NONE, SET, RESET } taboo = NONE;
 
     if(argv.size() > 1 && argv[1] == "--help")
     {
 	    HelpScreen h(argv[0]);
 	    h.Parameter(HelpScreenParameter("-a", "--all", "show all objects"));
 	    h.Parameter(HelpScreenParameter("-c", "--changed", "show only objects with changes"));
+	    h.Parameter(HelpScreenParameter("-t", "--taboo", "set package to taboo/protected"));
+	    h.Parameter(HelpScreenParameter("-T", "--untaboo", "reset taboo/protected state"));
 	    cout << h;
 	    return 0;
     }
@@ -40,14 +158,18 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
 
 	    if(pkg == "-a" || pkg == "--all")
 	    {
-		nonone = false;
+		flags.onlyinstalled = false;
 		continue;
 	    }
 	    else if(pkg == "-c" || pkg == "--changed")
 	    {
-		changed = true;
+		flags.onlychanged = true;
 		continue;
 	    }
+	    else if(pkg == "-t" || pkg == "--taboo")
+		{ taboo = SET; continue; }
+	    else if(pkg == "-T" || pkg == "--untaboo")
+		{ taboo = RESET; continue; }
 
 	    PMSelectablePtr selp = manager.getItem(pkg);
 	    if(!selp)
@@ -57,7 +179,7 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
 	    }
 	    else
 	    {
-		nonone = false;
+		flags.onlyinstalled = false;
 		showall = false;
 		selectables.insert(selp);
 	    }
@@ -72,64 +194,13 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
 	end = manager.end();
     }
 
-    for(PMManager::PMSelectableVec::const_iterator cit = begin;
-	cit != end; ++cit)
+    if( taboo != NONE)
     {
-	PMSelectable::UI_Status s = (*cit)->status();
-
-	if(nonone && s == PMSelectable::S_NoInst)
-	    continue;
-	
-	switch(s)
-	{
-	    case PMSelectable::S_Protected:
-	    case PMSelectable::S_Taboo:
-	    case PMSelectable::S_Del:
-	    case PMSelectable::S_Update:
-	    case PMSelectable::S_Install:
-	    case PMSelectable::S_AutoDel:
-	    case PMSelectable::S_AutoUpdate:
-	    case PMSelectable::S_AutoInstall:
-	    case PMSelectable::S_KeepInstalled:
-	    case PMSelectable::S_NoInst:
-
-	    if(changed && !(*cit)->to_modify())
-		continue;
-
-	    cout << statestr[s] << "   " << (*cit)->name();
-
-	    PMSelectionPtr selp=(*cit)->theObject();
-	    if(selp)
-	    {
-		cout << '\t';
-		if(selp->visible())
-		    cout << " +";
-		cout << selp->category();
-	    }
-	    else
-	    {
-		if((*cit)->has_installed())
-		{
-		    cout << " (" << (*cit)->installedObj()->edition();
-		    if((*cit)->has_candidate())
-		    {
-			if((*cit)->to_install())
-			    cout << " -> ";
-			else
-			    cout << " / ";
-
-			cout << (*cit)->candidateObj()->edition();
-			if(!(*cit)->downgrade_condition())
-			{
-			    cout << '*';
-			}
-		    }
-		    cout << ')';
-		}
-	    }
-	    cout << endl;
-	}
+	for_each(selectables.begin(), selectables.end(), SetTaboo( taboo == RESET ));
+	return 0;
     }
+
+    for_each(begin, end, PrintSelectable(cout, flags));
     
     return 0;
 }

@@ -1,4 +1,17 @@
 -------------------------------------------------------------------
+Thu Apr 15 15:43:24 CEST 2004 - lnussel@suse.de
+
+- run init immediately unless --no-init is specified on command line
+- add wildcard matching using fnmatch (e.g. "install k*devel")
+- install function only installs newer packages by default, -f
+  parameter can be used to force downgrades
+- allow set and reset of taboo state
+- add quit and exit functions for mmj
+- build dependency graph in distrocheck for future use
+- properly switch root directory even if target was already initialized
+- 2.9.4
+
+-------------------------------------------------------------------
 Mon Apr  5 12:05:37 CEST 2004 - lnussel@suse.de
 
 - support nodigest and nosignature flags
