@@ -20,3 +20,4 @@ configure.in
 config.sub
 config.guess
 Makefile.am.common
+Makefile.am
