@@ -63,8 +63,6 @@ using namespace std;
 
 static bool _keep_running = true;
 
-static vector<string> nullvector;
-
 int install(vector<string>& argv);
 int consistent(vector<string>& argv);
 int help(vector<string>& argv);
@@ -442,7 +440,7 @@ void init_commands()
     newselcmdI("selremove",	delsel, 1, "mark selection for removal, need to call solvesel");
     newselcmd("selsolve",	solvesel, 1, "solve selection dependencies and apply state to packages");
     newcmd("_cdattach",	cdattach, 2, "cdattach");
-    newcmd("distrocheck", distrocheck, 7, "find unsatisfied dependencies among candidates");
+    newpkgcmdC("distrocheck", distrocheck, 7, "find unsatisfied dependencies among candidates");
 // not useful    newcmd("you", onlineupdate, 1, "yast online update");
     newcmd("mem",	mem, 2, "memory statistics");
     newcmd("_testset",	testset, 2, "test memory consumption of PkgSet");
@@ -1349,14 +1347,23 @@ int main( int argc, char *argv[] )
     if(y2pmsh.shellmode() && y2pmsh.interactive())
     {
 	if(!noinit)
-	    mainret = y2pmsh.init(nullvector);
+	{
+	    vector<string> args;
+	    args.push_back("init");
+	    mainret = y2pmsh.init(args);
+
+	    if(!mainret)
+	    {
+		args[0] = "distrocheck";
+		mainret = distrocheck(args);
+	    }
+	}
 
 	cout << endl << "type help for help, ^D to exit" << endl << endl;
     }
 
     installsignalhandlers();
 
-    // TODO: write real command line parser
     while( cliok && _keep_running)
     {
 	vector<vector<string> > cmds;
@@ -1379,29 +1386,6 @@ int main( int argc, char *argv[] )
 	    y2pmsh.cli().addToHistory(inputstr);
 
 	    vector<string> tmp;
-/*
-	    if(stringutil::split(inputstr, tmp, ";") < 1)
-	    {
-		cout << "invalid input: " << inputstr << endl;
-		continue;
-	    }
-
-	    for(vector<string>::iterator it = tmp.begin();
-		it != tmp.end(); ++it)
-	    {
-		string cmd = stringutil::trim(*it);
-		if(cmd.empty())
-		    continue;
-
-		vector<string> argv;
-		if(stringutil::split(cmd, argv, " \t\n") < 1)
-		{
-		    cout << "invalid input: " << cmd << endl;
-		    continue;
-		}
-		cmds.push_back(argv);
-	    }
-*/
 	    y2pmsh.cli().parsewords(inputstr, tmp);
 	    cmds.push_back(tmp);
 	}
@@ -1432,8 +1416,9 @@ int main( int argc, char *argv[] )
 		bool showtimes = variables["timestat"].getBool();
 		if((cmdptr->flags()&1) && !y2pmsh.initialized() && cmdptr->func() != init)
 		{
+		    vector<string> args;
 		    if(showtimes) t.startTimer();
-		    mainret = y2pmsh.init(nullvector);
+		    mainret = y2pmsh.init(args);
 		    if(showtimes) t.stopTimer();
 		    if(showtimes) cout << "time: " << t << endl;
 		}
