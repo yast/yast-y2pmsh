@@ -16,6 +16,7 @@ y2pmsh_SOURCES = \
 	search.cc search.h \
 	summary.cc summary.h \
 	y2pmsh.cc y2pmsh.h \
+	distrocheck.cc distrocheck.h \
 	variables.cc variables.h
 
 y2pmsh_LDADD=$(tecladir)/libtecla_r.a -ly2pm -ly2util

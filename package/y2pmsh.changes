@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Mon Apr  5 12:05:37 CEST 2004 - lnussel@suse.de
+
+- support nodigest and nosignature flags
+- add 'distrocheck' command to find unsatisfied dependencies among all
+  candidates
+- 2.9.3
+
+-------------------------------------------------------------------
 Mon Mar 29 11:46:02 CEST 2004 - lnussel@suse.de
 
 - fix some typos, warnings, uninitialized variables

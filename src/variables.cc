@@ -155,11 +155,17 @@ static const char* logfilevalidate(const Variable& v)
     return NULL;
 }
 
+#ifdef SUSE90COMPAT
+#define LASTRPMFLAG RpmDb::RPMINST_JUSTDB
+#else
+#define LASTRPMFLAG RpmDb::RPMINST_NOSIGNATURE
+#endif
+
 static const char* pkginstflags2stings(const unsigned flags)
 {
     string str;
     for(unsigned i = RpmDb::RPMINST_NOSCRIPTS;
-	    i <= RpmDb::RPMINST_JUSTDB; i<<=1)
+	    i <= LASTRPMFLAG; i<<=1)
     {
 	if(!(flags&i)) continue;
 	if(i==RpmDb::RPMINST_NONE) continue;
@@ -179,11 +185,19 @@ static const char* pkginstflags2stings(const unsigned flags)
 		str+="IGNORESIZE"; break;
 	    case RpmDb::RPMINST_JUSTDB:
 		str+="JUSTDB"; break;
+#ifndef SUSE90COMPAT
+	    case RpmDb::RPMINST_NODIGEST:
+		str+="NODIGEST"; break;
+	    case RpmDb::RPMINST_NOSIGNATURE:
+		str+="NOSIGNATURE"; break;
+#endif
 	    case RpmDb::RPMINST_NONE: break;
 	}
     }
     return str.c_str();
 }
+
+#undef LASTRPMFLAG
 
 static bool string2pkginstflags(string str, unsigned &flags)
 {
@@ -209,6 +223,12 @@ static bool string2pkginstflags(string str, unsigned &flags)
 	    flags |= RpmDb::RPMINST_IGNORESIZE;
 	else if(*it == "JUSTDB")
 	    flags |= RpmDb::RPMINST_JUSTDB;
+#ifndef SUSE90COMPAT
+	else if(*it == "NODIGEST")
+	    flags |= RpmDb::RPMINST_NODIGEST;
+	else if(*it == "NOSIGNATURE")
+	    flags |= RpmDb::RPMINST_NOSIGNATURE;
+#endif
 	else
 	    cout << "invalid flag: " << *it << endl;
     }

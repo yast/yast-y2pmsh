@@ -58,6 +58,7 @@
 #include "instsrc.h"
 #include "search.h"
 #include "summary.h"
+#include "distrocheck.h"
 
 using namespace std;
 
@@ -476,6 +477,7 @@ void init_commands()
     newcmd("selremove",	delsel, 1, "mark selection for removal, need to call solvesel");
     newcmd("selsolve",	solvesel, 1, "solve selection dependencies and apply state to packages");
     newcmd("cdattach",	cdattach, 2, "cdattach");
+    newcmd("distrocheck", distrocheck, 7, "find unsatisfied dependencies among candidates");
     newcmd("mem",		mem, 2, "memory statistics");
     newcmd("testset",	testset, 2, "test memory consumption of PkgSet");
     newcmd("testmediaorder", testmediaorder, 3, "test media order");
@@ -1095,7 +1097,6 @@ int main( int argc, char *argv[] )
 
     RpmDbCallbacks::rebuildDbReport.redirectTo(rebuilddbcallback);
     RpmDbCallbacks::convertDbReport.redirectTo(convertdbcallback);
-    RpmDbCallbacks::removePkgReport.redirectTo(removepkgcallback);
 
     init_variables();
     
