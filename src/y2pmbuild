@@ -7,6 +7,8 @@ create_package_descr=/opt/kde3/share/apps/krpmview/create_package_descr
 : ${builddebugsolve:=0}
 
 ccache=0
+icecream=0
+mjobs=1
 quilt=0
 doinit=1
 rpmbuild=rpmbuild
@@ -156,6 +158,9 @@ getneededforbuild()
     if [ "$ccache" -eq 1 ]; then
 	neededpackages="$neededpackages ccache"
     fi
+    if [ "$icecream" -gt 0 ]; then
+	neededpackages="$neededpackages icecream gcc-c++"
+    fi
     if [ "$quilt" -eq 1 ]; then
 	neededpackages="$neededpackages quilt"
     fi
@@ -237,6 +242,7 @@ copysourcestobuildroot()
 
 addbuilduser()
 {
+    > "$buildroot"/etc/profile.d/build_path.sh
     if [ "$builduser" != "root" ]; then
 	if ! grep $builduser "$buildroot"/etc/passwd; then
 		echo adding user $builduser
@@ -245,7 +251,7 @@ addbuilduser()
 	echo adjusting permissions
 	chroot "$buildroot" chown -R $builduser.root /usr/src/packages
 
-	echo 'export PATH=/sbin:/usr/sbin:$PATH' > "$buildroot"/etc/profile.d/build_path.sh
+	echo 'export PATH=/sbin:/usr/sbin:$PATH' >> "$buildroot"/etc/profile.d/build_path.sh
     fi
 }
 
@@ -261,6 +267,21 @@ setupccache()
 	chroot "$buildroot" su - -c "rm -f ~$builduser/bin/{gcc,g++,cc,c++}"
     fi
     chroot "$buildroot" su - "$builduser" -c "ls -ld ~$builduser"
+}
+
+setupicecream()
+{
+    [ "$icecream" -eq 0 ] && return
+    
+    echo "using icecream with $icecream jobs"
+
+    echo 'export PATH=/opt/icecream/bin:$PATH' >> "$buildroot"/etc/profile.d/build_path.sh
+
+    rm -rf $buildroot/var/run/icecream
+    mkdir -p $buildroot/var/run/icecream
+    chroot $buildroot bash -c 'cd /var/run/icecream; /usr/bin/create-env'
+    local icecc_vers=`cd $buildroot; ls -1 var/run/icecream/*.tar.bz2`
+    echo "export ICECC_VERSION=/$icecc_vers" >> "$buildroot"/etc/profile.d/build_path.sh
 }
 
 determinerpmversion()
@@ -286,7 +307,7 @@ mountfilesystems()
 parsecmdline()
 {
     shortopts=
-    longopts=ccache,root,no-init,quilt,no-copy-repo
+    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
 	 -n 'y2pmbuild' -- "$@"`
 
@@ -297,6 +318,8 @@ parsecmdline()
     while true ; do
 	case "$1" in
 	    --ccache) ccache=1 ; shift ;;
+	    --icecream) icecream=$2; bjobs=$icecream ; shift 2 ;;
+	    --jobs) bjobs=$2 ; shift 2 ;;
 	    --quilt) quilt=1 ; shift ;;
 	    --root) builduser=root ; shift ;;
 	    --no-init) doinit=0 ; shift ;;
@@ -381,6 +404,8 @@ for spec in "$specfiles"; do
 
     addbuilduser
 
+    setupicecream
+
     setupccache
 
     determinerpmversion
@@ -394,7 +419,13 @@ for spec in "$specfiles"; do
 
     rpmbuildstage=-ba
 
-    chroot "$buildroot" su - $builduser -c "$rpmbuild --nodeps $rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
+    if [ "$bjobs" -gt 1 ]; then
+	bjobs="-D 'jobs $bjobs'"
+    else
+	bjobs=""
+    fi
+
+    chroot "$buildroot" su - $builduser -c "$rpmbuild --nodeps $bjobs $rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
 
     success=1;
     echo -n "done $spec at " >> "$buildroot/.build.packages"
