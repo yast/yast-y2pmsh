@@ -98,6 +98,7 @@ unsigned Commands::count() const
 Y2PMSH::Y2PMSH() : _initialized(false), _shellmode(true)
 {
     _interactive = ::isatty(0);
+    _dosetenv = (::getenv("YAST_IS_RUNNING") == NULL);
 }
 
 bool Y2PMSH::initialized()
@@ -172,4 +173,14 @@ bool Y2PMSH::shellmode()
 void Y2PMSH::shellmode(bool yes)
 {
     _shellmode = yes;
+}
+
+void Y2PMSH::setenv(bool instsys)
+{
+    if(!_dosetenv) return;
+
+    if(instsys)
+	::setenv("YAST_IS_RUNNING","instsys",1);
+    else
+	::setenv("YAST_IS_RUNNING","yes",1);
 }

@@ -127,6 +127,8 @@ static const char* setroot(const Variable& v)
 
     cout << "root dir set to " << v.getString() << endl;
 
+    y2pmsh.setenv(v.getString() != "/");
+
     if(y2pmsh.initialized())
 	y2pmsh.targetinit();
 

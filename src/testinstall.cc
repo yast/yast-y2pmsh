@@ -943,8 +943,7 @@ int main( int argc, char *argv[] )
     
     init_commands();
 
-    if(!::getenv("YAST_IS_RUNNING"))
-	::setenv("YAST_IS_RUNNING","1",1);
+    y2pmsh.setenv();
 
     setlocale(LC_CTYPE, "");
 

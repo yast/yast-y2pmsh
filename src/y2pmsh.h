@@ -65,6 +65,7 @@ class Y2PMSH
 
 	bool _interactive;
 	bool _shellmode;
+	bool _dosetenv;
 
     public:
 	Y2PMSH();
@@ -87,6 +88,9 @@ class Y2PMSH
 	
 	/** (un)set shellmode */
 	void shellmode(bool yes);
+
+	/** set YAST_IS_RUNNING */
+	void setenv(bool instsys = false);
 };
 
 extern Y2PMSH y2pmsh;
