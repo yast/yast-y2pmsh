@@ -81,7 +81,6 @@ int setappl(vector<string>& argv);
 int order(vector<string>& argv);
 int upgrade(vector<string>& argv);
 int commit(vector<string>& argv);
-int summary(vector<string>& argv);
 int mem(vector<string>& argv);
 int checkpackage(vector<string>& argv);
 
@@ -372,6 +371,7 @@ void init_commands()
     newcmd("order",	order, 3, "compute installation order");
     newcmd("upgrade",	upgrade, 1, "compute upgrade");
     newcmd("summary",	summary, 1, "display summary about what would be done on commit");
+    newcmd("depstats",	depstats, 3, "dependency statistics");
     newcmd("commit",	commit, 1, "commit changes. actually performs installation");
     newcmd("selshow",	selshow, 1, "show selection info");
     newcmd("selinstall",	setsel, 1, "mark selection for installation, need to call solvesel");
