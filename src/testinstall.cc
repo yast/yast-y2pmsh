@@ -395,7 +395,7 @@ void init_commands()
     newcmd("_order",	order, 3, "compute installation order");
     newcmd("upgrade",	upgrade, 1, "compute upgrade");
     newcmd("summary",	summary, 1, "display summary about what would be done on commit");
-    newcmd("_depstats",	depstats, 3, "dependency statistics");
+    newcmd("depstats",	depstats, 1, "dependency statistics");
     newcmd("commit",	commit, 1, "commit changes. actually performs installation");
     newselcmdA("selstate",	selstate, 1,  "show state of selection");
     newselcmdA("selshow",	selshow, 1, "show selection info");
