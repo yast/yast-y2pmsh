@@ -358,6 +358,8 @@ void init_commands()
     newcmd("whatprovides",	whatprovides, 1, "search for package provides");
     newcmd("whatrequires",	whatrequires, 1, "search for package requirement");
     newpkgcmd("whatdependson",	whatdependson, 1, "search for depending packages");
+    newpkgcmd("whatconflictswith", whatconflictswith, 1, "search for conflicting packages");
+    newpkgcmd("allconflicts", allconflicts, 1, "display all conflicting packages");
     newpkgcmd("depends",	depends, 1, "search for depending packages");
     newcmd("alternatives",	alternatives, 5, "search for depending packages");
 //    newcmd("query",     query, 5, "query packagemanager");

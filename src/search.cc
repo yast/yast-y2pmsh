@@ -59,6 +59,7 @@ struct matches_t
     PkgRelation rel;
 };
 
+// TODO: belongs into PMSolvable
 static bool solvable_does_require(PMSolvablePtr s, PkgRelation what, list<matches_t>* matches = NULL)
 {
     bool found = false;
@@ -422,5 +423,197 @@ int alternatives(vector<string>& argv)
     return 0;
 }
 
+static bool getconflictsfor(PMSelectablePtr sp1, list<matches_t>& matches)
+{
+    bool hasconflicts = false;
+
+    if (!sp1) return false;
+
+    PMPackagePtr p1;
+    p1 = sp1->theObject();
+
+    if(!p1) return false;
+    
+    PMManager::PMSelectableVec::const_iterator it = Y2PM::packageManager().begin();
+    for(; it != Y2PM::packageManager().end(); ++it)
+    {
+	PMSelectablePtr sp = (*it);
+	if(!sp || sp == sp1) continue;
+
+	PMPackagePtr p;
+
+	p = sp->theObject();
+
+	if(!p) continue;
+
+	PMSolvable::PkgRelList_const_iterator it = p1->conflicts_begin();
+
+	for(; it != p1->conflicts_end(); ++it)
+	{
+	    if(p->doesProvide(*it))
+	    {
+		matches.push_back(matches_t(p, *it));
+		hasconflicts = true;
+	    }
+	}
+    }
+
+    return hasconflicts;
+}
+
+// inefficient
+int allconflicts(vector<string>& argv)
+{
+    if(argv.size() > 1 && argv[1] == "--help")
+    {
+	HelpScreen h("allconflicts");
+//	h.Parameter(HelpScreenParameter("-a", "", "all matches"));
+	cout << h;
+	return 0;
+    }
+
+    map<PMSelectablePtr, set<PMSolvablePtr> > conflictpkgs;
+
+    PMManager::PMSelectableVec::const_iterator it = Y2PM::packageManager().begin();
+    for(; it != Y2PM::packageManager().end(); ++it)
+    {
+	PMSelectablePtr sp = (*it);
+	if(!sp) continue;
+
+	list<matches_t> matches;
+	getconflictsfor(sp, matches);
+
+	for(list<matches_t>::iterator it = matches.begin();
+	    it != matches.end(); ++it)
+	{
+	    PMSolvablePtr pp = it->pkg;
+	    if(!pp) continue;
+
+	    conflictpkgs[sp].insert(pp);
+	}
+    }
+
+    map<PMSelectablePtr, set<PMSolvablePtr> >::iterator cit = conflictpkgs.begin();
+
+    for(; cit != conflictpkgs.end(); ++cit)
+    {
+	cout << cit->first->name() << " conflicts";
+
+	set<PMSolvablePtr>::iterator sit = cit->second.begin();
+	for(; sit != cit->second.end(); ++sit)
+	{
+	     cout << " " << (*sit)->name();
+	}
+
+	cout << endl;
+    }
+
+    return 0;
+}
+
+#if 0 // needs to be fixed
+int allconflicts(vector<string>& argv)
+{
+    if(argv.size() > 1 || argv[1] == "--help")
+    {
+	HelpScreen h("allconflicts");
+//	h.Parameter(HelpScreenParameter("-a", "", "all matches"));
+	cout << h;
+	return 0;
+    }
+
+    PkgSet pkgs;
+
+    map<PMSolvablePtr, set<PMSolvablePtr> > conflictpkgs;
+
+    PMManager::PMSelectableVec::const_iterator it = Y2PM::packageManager().begin();
+    for(; it != Y2PM::packageManager().end(); ++it)
+    {
+	PMSelectablePtr sp = (*it);
+	if(!sp) continue;
+
+	PMPackagePtr p;
+	p = sp->theObject();
+	if(!p) continue;
+
+	pkgs.add(p);
+    }
+
+    for(PkgSet::iterator it = pkgs.begin(); it != pkgs.end(); ++it)
+    {
+	list<matches_t> matches;
+
+	PMSolvablePtr solv = it->second;
+
+	for(PMSolvable::PkgRelList_const_iterator conflit = solv->conflicts_begin();
+	    conflit != solv->conflicts_end(); ++conflit)
+	{
+	    PkgSet::InvRel_iterator providinglist = pkgs.provided()[conflit->name()];
+
+	    if(providinglist == pkgs.provided_end())
+		continue;
+
+	    for(PkgSet::RevRelList_iterator provider = providinglist.begin();
+		provider != providinglist.end())
+	    {
+		if(conflit->matches(provider->relation()))
+		    conflictpkgs[solv] = provider->pkg();
+	    }
+	}
+    }
+
+
+    map<PMSolvablePtr, set<PMSolvablePtr> >::iterator cit = conflictpkgs.begin();
+
+    for(; cit != conflictpkgs.end(); ++cit)
+    {
+	cout << cit->first->name() << " conflicts";
+
+	set<PMSolvablePtr>::iterator sit = cit->second.begin();
+	for(; sit != cit->second.end(); ++sit)
+	{
+	     cout << (*sit)->name();
+	}
+
+	cout << endl;
+    }
+
+    return 0;
+}
+#endif
+
+int whatconflictswith(vector<string>& argv)
+{
+    if(argv.size() < 2 || argv[1] == "--help")
+    {
+	HelpScreen h("whatconflictswith");
+	h.additionalparams("PACKAGE");
+	cout << h;
+	return 0;
+    }
+
+    string what(argv[1]);
+    list<matches_t> matches;
+
+    PMSelectablePtr sp1 = Y2PM::packageManager().getItem(what);
+    if(!sp1)
+    {
+	cout << what << " not found" << endl;
+	return 1;
+    };
+
+    getconflictsfor(sp1, matches);
+
+    for(list<matches_t>::iterator it = matches.begin();
+	it != matches.end(); ++it)
+    {
+	PMPackagePtr pp = it->pkg;
+	if(!pp) continue;
+
+	cout << pp->name() << " conflicts via provides " << it->rel << endl;
+    }
+
+    return 0;
+}
 
 // vim: sw=4
