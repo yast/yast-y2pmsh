@@ -73,7 +73,7 @@ class Deps
 		// PMSolvablePtr, PkgDeps
 		void operator()(Content::value_type p)
 		{
-		    _os << p.first->name() << ": " << endl;
+		    _os << p.first->nameEd() << ": " << endl;
 		    _os << "  Requires:" << endl;
 		    for_each(
 			p.second.begin(),
@@ -185,7 +185,7 @@ class CheckCandidateDeps
 	    for_each(
 		brokendeps.begin(),
 		brokendeps.end(),
-		Print(cout, string(p->name().asString() + ": broken requirement %s\n").c_str()));
+		Print(cout, string(p->nameEd() + ": broken requirement %s\n").c_str()));
 	}
 	
 };

@@ -13,7 +13,7 @@
 
 using namespace std;
 
-static const char* statestr[] = { "@i", "--", " -", " >", " +", "a-", "a>", "a+", " i", "  " };
+static const char* statestr[] = { "@i", "--", " -", " >", " +", "a-", "a>", "a+", " i", "  ", "???", "s-", "s>", "s+" };
 
 PrintSelectable::Flags::Flags()
     : onlyinstalled(false), onlychanged(false), summary(false), version(true)
@@ -30,7 +30,13 @@ void PrintSelectable::operator()(PMSelectablePtr sptr)
 
     if(_flags.onlyinstalled && !sptr->has_installed())
 	return;
+
+    if(_flags.onlychanged && !sptr->to_modify())
+	return;
+
     
+    unsigned index =  PMSelectable::S_NoInst + 1; // -> ???
+
     switch(s)
     {
 	case PMSelectable::S_Protected:
@@ -38,16 +44,29 @@ void PrintSelectable::operator()(PMSelectablePtr sptr)
 	case PMSelectable::S_Del:
 	case PMSelectable::S_Update:
 	case PMSelectable::S_Install:
+	    index = s;
+	    break;
 	case PMSelectable::S_AutoDel:
 	case PMSelectable::S_AutoUpdate:
 	case PMSelectable::S_AutoInstall:
+	    index = s;
+	    if (sptr->by_appl())
+	    {
+		index += (PMSelectable::S_NoInst - PMSelectable::S_AutoDel) + 2;
+	    }
+	    break;
 	case PMSelectable::S_KeepInstalled:
 	case PMSelectable::S_NoInst:
+	    index = s;
+    }
 
-	if(_flags.onlychanged && !sptr->to_modify())
-	    return;
+    if(index >= sizeof(statestr) - 1)
+    {
+	cout << "ERR: index out of range" << endl;
+	return;
+    }
 
-	_os << statestr[s] << "   " << sptr->name();
+	_os << statestr[index] << "   " << sptr->name();
 
 	PMSelectionPtr selp=sptr->theObject();
 	if(selp)
@@ -98,7 +117,6 @@ void PrintSelectable::operator()(PMSelectablePtr sptr)
 	}
 	
 	_os << endl;
-    }
 }
 
 class SetTaboo
@@ -330,3 +348,4 @@ int depstats(vector<string>& argv)
     return 0;
 }
 
+// vim:sw=4

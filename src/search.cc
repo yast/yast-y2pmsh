@@ -113,7 +113,7 @@ int whatrequires(vector<string>& argv)
 	PMPackagePtr pp = it->pkg;
 	if(!pp) continue;
 
-	cout << pp->name() << " requires " << it->rel << endl;
+	cout << pp->nameEd() << " requires " << it->rel << endl;
     }
 
     return 0;
@@ -172,7 +172,7 @@ int whatdependson(vector<string>& argv)
 	PMPackagePtr pp = it->pkg;
 	if(!pp) continue;
 
-	cout << pp->name() << " requires " << it->rel << endl;
+	cout << pp->nameEd() << " requires " << it->rel << endl;
     }
 
     return 0;
@@ -221,7 +221,7 @@ int whatprovides(vector<string>& argv)
 	PMPackagePtr pp = it->pkg;
 	if(!pp) continue;
 
-	cout << pp->name() << " provides " << it->rel << endl;
+	cout << pp->nameEd() << " provides " << it->rel << endl;
     }
 
     return 0;
