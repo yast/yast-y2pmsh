@@ -41,6 +41,7 @@ class DotPainter
 	virtual void start( const string& msg )
 	{
 	    _pc.reset();
+	    _pc.range(0, 100); // default range in case progress() never gets called
 	    _cols = _dots = 0;
 
 	    _cols = TTY::width();
