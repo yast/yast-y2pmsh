@@ -278,20 +278,67 @@ int summary(vector<string>& argv)
     return 0;
 }
 
+class NumReqProv
+{
+    public:
+	PkgName n;
+	unsigned p;
+	unsigned r;
+};
+
+class SortByNumReqOrProv
+{
+    private:
+	bool _byprov;
+
+    public:
+	SortByNumReqOrProv(bool byprov = false) : _byprov(byprov)
+	{
+	}
+
+	bool operator()(const NumReqProv& rhs, const NumReqProv& lhs)
+	{
+	    if(_byprov)
+		return rhs.p > lhs.p;
+	    else
+		return rhs.r > lhs.r;
+	}
+};
+
 int depstats(vector<string>& argv)
 {
     bool installed = false;
-    if(argv.size() > 1)
+    unsigned top = 10;
+
+    vector<string>::iterator arg = ++argv.begin();
+    for(;arg != argv.end() && (*arg)[0] == '-'; ++arg)
     {
-	if(argv[1] == "--help")
+	if(*arg == "-h" || *arg == "--help")
 	{
 	    HelpScreen h(argv[0]);
 	    h.Parameter(HelpScreenParameter("-i", "", "count installed instead of candidates"));
+	    h.Parameter(HelpScreenParameter("-n NUM", "", "print the NUM top most providers/requirers"));
 	    cout << h;
 	    return 0;
 	}
-	if(argv[1] == "-i")
+	if(*arg == "-i")
+	{
 	    installed = true;
+	}
+	if(*arg == "-n")
+	{
+	    if(++arg == argv.end())
+	    {
+		cout << "missing argument for parameter -n" << endl;
+		return 1;
+	    }
+	    top = atoi(arg->c_str());
+	}
+	else
+	{
+	    cout << "invalid parameter: " << *arg << endl;
+	    return 1;
+	}
     }
 
 
@@ -302,10 +349,7 @@ int depstats(vector<string>& argv)
     unsigned provs = 0;
     unsigned reqs = 0;
 
-    unsigned maxprovs = 0;
-    unsigned maxreqs = 0;
-    PkgName topprov;
-    PkgName topreq;
+    std::list<NumReqProv> pkglist;
 
     it = manager.begin();
     end = manager.end();
@@ -328,22 +372,38 @@ int depstats(vector<string>& argv)
 	provs += prov;
 	reqs += req;
 
-	if(prov > maxprovs)
+	NumReqProv x;
+	x.n = pkg->name();
+	x.p = prov;
+	x.r = req;
+	pkglist.push_back(x);
+    }
+
+    if(top > packages) top = packages;
+
+    cout << "Packages: " << packages << endl;
+    cout << stringutil::form("Provides: %6d / %6.2f avg", provs, (double)provs/packages) << endl;
+    cout << stringutil::form("Requires: %6d / %6.2f avg", reqs, (double)reqs/packages) << endl;
+
+    {
+	std::list<NumReqProv>::iterator it, end;
+	unsigned i;
+
+	cout << stringutil::form("\nTop %u requires:\n", top);
+	pkglist.sort(SortByNumReqOrProv());
+	for(i = top, it = pkglist.begin(); i && it != pkglist.end(); ++it, --i)
 	{
-		maxprovs = prov;
-		topprov = pkg->name();
+	    cout << stringutil::form("%4u %s\n", it->r, it->n->c_str());
 	}
-	if(req > maxreqs)
+
+	cout << stringutil::form("\nTop %u provides:\n", top);
+	pkglist.sort(SortByNumReqOrProv(true));
+	for(i = top, it = pkglist.begin(); i && it != pkglist.end(); ++it, --i)
 	{
-		maxreqs = req;
-		topreq = pkg->name();
+	    cout << stringutil::form("%4u %s\n", it->p, it->n->c_str());
 	}
 
     }
-
-    cout << "Packages: " << packages << endl;
-    cout << stringutil::form("Provides: %6d / %6.2f avg, top: %s (%d provides)", provs, (double)provs/packages, topprov->c_str(), maxprovs) << endl;
-    cout << stringutil::form("Requires: %6d / %6.2f avg, top: %s (%d requires)", reqs, (double)reqs/packages, topreq->c_str(), maxreqs) << endl;
 
     return 0;
 }
