@@ -126,7 +126,7 @@ int whatdependson(vector<string>& argv)
     if(argv.size() < 2 || argv[1] == "--help")
     {
 	HelpScreen h("whatdependson");
-//	h.additionalparams("STRING");
+	h.additionalparams("PACKAGE");
 //	h.Parameter(HelpScreenParameter("-a", "", "all matches"));
 	cout << h;
 	return 0;
@@ -234,7 +234,7 @@ int depends(vector<string>& argv)
     if(argv.size() < 2 || argv[1] == "--help")
     {
 	HelpScreen h("depends");
-	h.additionalparams("STRING");
+	h.additionalparams("PACKAGE");
 //	h.Parameter(HelpScreenParameter("-a", "", "all matches"));
 	cout << h;
 	return 0;

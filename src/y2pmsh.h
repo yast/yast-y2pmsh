@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 
+#include "cmdlineiface.h"
+
 #define COMMAND_FUNC(func) int (*func)(std::vector<std::string>& argv)
 
 class Command
@@ -67,6 +69,10 @@ class Y2PMSH
 	bool _shellmode;
 	bool _dosetenv;
 
+	CmdLineIface* _cli;
+
+	static const char appname[];
+
     public:
 	Y2PMSH();
 
@@ -91,6 +97,9 @@ class Y2PMSH
 
 	/** set YAST_IS_RUNNING */
 	void setenv(bool instsys = false);
+
+	/** access to command line interface */
+	CmdLineIface& cli(void);
 };
 
 extern Y2PMSH y2pmsh;

@@ -4,6 +4,13 @@
 #include <y2pm/InstTarget.h>
 #include <y2pm/InstTargetError.h>
 
+#include "cmdlineiface.h"
+#ifdef USEREADLINE
+#include "cmdlineiface_readline.h"
+#elif defined(USETECLA)
+#include "cmdlineiface_tecla.h"
+#endif
+
 #include "y2pmsh.h"
 #include "variables.h"
 #include "instsrc.h"
@@ -95,7 +102,7 @@ unsigned Commands::count() const
     return _commands.size();
 }
 	
-Y2PMSH::Y2PMSH() : _initialized(false), _shellmode(true)
+Y2PMSH::Y2PMSH() : _initialized(false), _shellmode(true), _cli(NULL)
 {
     _interactive = ::isatty(0);
     _dosetenv = (::getenv("YAST_IS_RUNNING") == NULL);
@@ -184,3 +191,23 @@ void Y2PMSH::setenv(bool instsys)
     else
 	::setenv("YAST_IS_RUNNING","yes",1);
 }
+
+CmdLineIface& Y2PMSH::cli(void)
+{
+    if(!_cli)
+    {
+#ifdef USEREADLINE
+	_cli = new CmdLineIfaceRL(appname);
+#elif defined(USETECLA)
+	_cli = new CmdLineIfaceTecla(appname);
+#else
+	_cli = new CmdLineIface(appname);
+#endif
+    }
+
+    return *_cli;
+}
+
+const char Y2PMSH::appname[] = "y2pmsh";
+
+// vim: sw=4

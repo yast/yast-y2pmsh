@@ -3,13 +3,24 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 class CmdLineIface
 {
+    public:
+	// primitive completion function
+	class Completer
+	{
+	    public:
+		virtual const std::string command();
+		virtual std::vector<std::string> completions(const std::string word);
+	};
+
     private:
 	std::string _appname;
 	int _lastretcode;
 	bool _interactive;
+	std::map<std::string, Completer*> completors;
 
     public:
 	/** construct the interface, name is used for the history file */
@@ -37,6 +48,12 @@ class CmdLineIface
 
 	/** tokenzie a line into words */
 	void parsewords(const std::string& line, std::vector<std::string>& words);
+	
+	/** register command completer. don't free afterwards! */
+	void registerCompleter(Completer* c);
+
+	/** get completions for command and word */
+	std::vector<std::string> completeCommand(const std::string& command, const std::string& word);
 };
 
 #endif
