@@ -101,6 +101,9 @@ int products(vector<string>& argv);
 
 Y2PMSH y2pmsh;
 
+static ProgressCounter toinstallcounter; // should go into pkgmanager
+static ProgressCounter todeletecounter; // should go into pkgmanager
+
 inline int init(vector<string>& argv)
 {
     return y2pmsh.init(argv);
@@ -199,9 +202,27 @@ class DotPainter
 {
     private:
 	ProgressCounter _pc;
-	int _cols;
-	int _dots;
-	string _ok;
+	int _cols; // terminal width
+	int _dots; // number of already painted dots
+	string _ok; // string to display in case of success
+
+    protected:
+	virtual void paint()
+	{
+	    if(_cols - _dots)
+	    {
+		int needdots = _cols * _pc.percent() / 100;
+		if(needdots > _dots)
+		{
+		    for(int i = 0; i < needdots - _dots; ++i)
+		    {
+			cout << '.';
+		    }
+		    cout << flush;
+		    _dots = needdots;
+		}
+	    }
+	}
 
     public:
 	DotPainter()
@@ -230,16 +251,7 @@ class DotPainter
 	    _pc = prg;
 	    if(_pc.updateIfNewPercent(5) && _pc.percent())
 	    {
-		if(_cols - _dots)
-		{
-		    int needdots = _cols * _pc.percent() / 100;
-		    for(int i = 0; i < needdots - _dots; ++i)
-		    {
-			cout << '.';
-		    }
-		    _dots = needdots;
-		}
-		cout << flush;
+		paint();
 	    }
 	};
 	virtual void stop( PMError error )
@@ -247,7 +259,12 @@ class DotPainter
 	    if(error != PMError::E_ok)
 		cout << "*** failed: " << error << endl;
 	    else
+	    {
+		_pc.set(100);
+		paint();
+
 		cout << _ok << endl;
+	    }
 	};
 };
 
@@ -262,7 +279,8 @@ class InstallPkgCallback : public RpmDbCallbacks::InstallPkgCallback
 	}
 	virtual void start( const Pathname & filename )
 	{
-	    _dp.start(string("installing ") + filename.basename() + " ");
+	    toinstallcounter.incr();
+	    _dp.start(stringutil::form("installing [%3d%%] ", toinstallcounter.percent()) + filename.basename() + " ");
 	};
 	virtual void progress( const ProgressData & prg )
 	{
@@ -310,7 +328,8 @@ class RemovePkgCallback : public RpmDbCallbacks::RemovePkgCallback
 	}
 	virtual void start( const string& label )
 	{
-	    _dp.start(string("removing ") + label + " ");
+	    todeletecounter.incr();
+	    _dp.start(stringutil::form("removing [%3d%%] ", todeletecounter.percent()) + label + " ");
 	};
 	virtual void progress( const ProgressData & prg )
 	{
@@ -1050,6 +1069,31 @@ class Print
 	}
 };
 
+// TODO: need this as interface in pkgmanager
+class CountToInstall
+{
+	int _toinst;
+	int _todel;
+    public:
+	CountToInstall() : _toinst(0), _todel(0)
+	{
+	}
+	~CountToInstall()
+	{
+	    toinstallcounter.init(0, _toinst, 0);
+	    todeletecounter.init(0, _todel, 0);
+	}
+	void operator()(PMSelectablePtr p)
+	{
+	    if(!p) return;
+
+	    if(p->to_install())
+		++_toinst;
+	    else if(p->to_delete())
+		++_todel;
+	}
+};
+
 int commit(vector<string>& argv)
 {
     std::list<std::string> errors_r;
@@ -1079,6 +1123,11 @@ int commit(vector<string>& argv)
 	os.close();
     }
 #endif
+
+    for_each(
+	Y2PM::packageManager().begin(),
+	Y2PM::packageManager().end(),
+	CountToInstall());
 
     int num = Y2PM::commitPackages (0,errors_r, remaining_r, srcremaining_r);
 

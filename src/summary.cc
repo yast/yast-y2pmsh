@@ -164,6 +164,7 @@ static int showstate_internal(PMManager& manager, vector<string>& argv)
 	    else if(pkg == "-c" || pkg == "--changed")
 	    {
 		flags.onlychanged = true;
+		flags.onlyinstalled = false;
 		continue;
 	    }
 	    else if(pkg == "-t" || pkg == "--taboo")
