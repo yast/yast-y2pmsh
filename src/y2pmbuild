@@ -14,6 +14,7 @@ doinit=1
 rpmbuild=rpmbuild
 rpmbuildstage=a
 target=
+specfiles=
 
 success=0;
 
@@ -413,6 +414,7 @@ parsecmdline()
 	    *) echo "error parsing command line options" ; exit 1 ;;
 	esac
     done
+    specfiles="$*"
 }
 
 
@@ -460,7 +462,10 @@ rm -f $buildroot/.build.log
 exec > >(tee $buildroot/.build.log) 2>&1
 
 shopt -s nullglob
-specfiles=`echo *.spec`
+
+if [ -z "$specfiles" ]; then
+    specfiles=`echo *.spec`
+fi
 
 if [ -z "$specfiles" ]; then
     echo "no spec files found" >&2
