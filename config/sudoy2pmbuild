@@ -2,14 +2,8 @@
 
 y2pmbuildconfdir=/etc/y2pmbuild
 
-if [ -z "$tried_to_get_root" ]; then
-        export tried_to_get_root="$LOGNAME"
+if [ "`id -u`" != 0 ]; then
         exec sudo -H "$0" "$@"
-        exit 1
-fi
-
-if [ -z "$tried_to_get_root" ]; then
-        echo "unable to find a sane LOGNAME"
         exit 1
 fi
 
@@ -32,7 +26,5 @@ if [ -z "$BUILD_DIST" ]; then
 	fi
 		
 fi
-
-export LOGNAME=$tried_to_get_root
 
 exec y2pmbuild "$@"

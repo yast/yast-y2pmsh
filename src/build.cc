@@ -9,6 +9,7 @@
 #include "y2pmsh.h"
 #include "build.h"
 #include "solverresults.h"
+#include "variables.h"
 
 using namespace std;
 
@@ -52,9 +53,10 @@ static void build_printstringset(string name, set<string> s)
     cout << endl;
 }
 
-static void filltoinstall(PkgSet& toinstall, vector<string>& argv)
+static bool filltoinstall(PkgSet& toinstall, vector<string>& argv, PkgDep::ErrorResultList& bad)
 {
     unsigned nt = 0;
+    unsigned missing = 0;
     for (vector<string>::iterator it = ++argv.begin();
 	    it != argv.end(); ++it)
     {
@@ -66,12 +68,18 @@ static void filltoinstall(PkgSet& toinstall, vector<string>& argv)
 	if(!selp || !selp->has_candidate())
 	{
 	    std::cout << "\033[31mpackage " << pkg << " is not available.\033[m\n";
+	    ++missing;
 	    continue;
 	}
 	toinstall.add(selp->candidateObj());
 	++nt;
     }
     cout << nt << " packages to install" << endl;
+
+    if(variables["build::strictrequires"].getBool() && missing)
+	return false;
+
+    return true;
 }
 
 // pretend an empty buildroot and try to install all packages specified on
@@ -86,7 +94,8 @@ static bool runsolver(vector<string>& argv, PkgDep::ResultList& good, PkgDep::Er
 
     // add all packages in argv into toinstall, provided that the
     // PMPackageManager knows them
-    filltoinstall(toinstall, argv);
+    if(!filltoinstall(toinstall, argv, bad))
+	return false;
 
     // add all packages with candidates to available
     fillavailable(available);
@@ -182,8 +191,11 @@ int buildsolve(vector<string>& argv)
 
     if(!success)
     {
-	cout << "unresolvable dependencies:" << endl;
-	numbad = printbadlist(bad);
+	if(!bad.empty())
+	{
+	    cout << "unresolvable dependencies:" << endl;
+	    numbad = printbadlist(bad);
+	}
 	return 1;
     }
 

@@ -1,0 +1,24 @@
+# where to store built rpms
+repository="/var/spool/y2pmbuild/$BUILD_DIST"
+
+# run genIS_PLAINcache?
+regen_repository="plain"
+
+# additional sources, specify with url_...
+add_sources="suse"
+
+# suse here is the one from $add_sources
+url_suse="file:/srv/ftp/pub/suse/$BUILD_DIST/CD1/"
+
+# add this url as top priority source (needs patches on 9.0)
+url_repository="file:$repository"
+
+# files that will be copied to the buildroot after packages have
+# been installed
+copy_files="$y2pmbuildconfdir/files/$BUILD_DIST/etc"
+
+# basename for build root directories. The final name will be
+# $buildrootbase.$USER.$BUILD_DIST
+#buildrootbase="/var/tmp/build-root"
+
+# vim:syntax=sh

@@ -1,18 +1,3 @@
-# where to store built rpms
-repository="/var/spool/y2pmbuild/$BUILD_DIST"
-
-# run genIS_PLAINcache?
-regen_repository="plain"
-
-# additional sources, specify with url_...
-add_sources="suse"
-
-# suse here is the one from $add_sources
-url_suse="file:/opt/pub/linux/distri/$BUILD_DIST/CD1/"
-
-# add this url as top priority source (needs patches on 9.0)
-url_repository="file:$repository"
-
 # packages that need to always be installed
 defaultpackages="fillup attr acl aaa_base filesystem autoconf automake bash binutils bison bzip2 cpio cpp cracklib cyrus-sasl db devs diffutils e2fsprogs file findutils flex gawk gcc gdbm gdbm-devel gettext glibc glibc-devel glibc-locale gpm grep groff gzip kbd less libgcc libstdc++ libtool libxcrypt zlib m4 make man mktemp modutils ncurses ncurses-devel net-tools netcfg pam pam-devel pam-modules patch perl permissions ps rcs readline rpm sed sendmail shadow strace syslogd sysvinit tar texinfo timezone unzip util-linux vim zlib-devel"
 
