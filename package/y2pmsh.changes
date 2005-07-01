@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Fri Jul  1 11:46:59 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: use common config file for all distros
+- y2pmbuild: copy additional files like rpm macros to buildroot
+- new variable build::strictrequires used by y2pmbuild --strictrequires
+- 2.11.8
+
+-------------------------------------------------------------------
 Wed Mar 30 13:55:23 CEST 2005 - lnussel@suse.de
 
 - don't use cacheToRamdisk(false) (#74618)

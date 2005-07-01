@@ -368,6 +368,9 @@ void init_variables()
     variables["runningfromsystem"] =  Variable("1",false,runningfromsystem);
     vardesc["runningfromsystem"] = "behave somewhat like an initial installation";
 
+    variables["build::strictrequires"] = Variable("0",false);
+    vardesc["build::strictrequires"] = "whether missing build requires are fatal";
+
     const char* msg = Variable::assign(variables["instlog"], "/var/log/YaST2/y2logRPM");
     if(msg)
 	cout << "Err: " << msg << endl;;

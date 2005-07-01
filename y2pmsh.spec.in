@@ -46,4 +46,7 @@ install -m 644 patches-9.0/*.diff %{buildroot}%{_docdir}/%{name}/patches-9.0
 %{_bindir}/*
 %dir %{_sysconfdir}/y2pmbuild
 %dir %{_sysconfdir}/y2pmbuild/dists
+%dir %{_sysconfdir}/y2pmbuild/files
 %config(noreplace) %{_sysconfdir}/y2pmbuild/dists/*
+%config(noreplace) %{_sysconfdir}/y2pmbuild/files/*
+%config(noreplace) %{_sysconfdir}/y2pmbuild/dists_common

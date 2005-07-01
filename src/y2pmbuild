@@ -6,6 +6,8 @@ create_package_descr=/opt/kde3/share/apps/krpmview/create_package_descr
 : ${builduser:=compiler}
 : ${builddebugsolve:=0}
 
+buildrootbase="/var/tmp/build-root"
+
 ccache=0
 icecream=0
 bjobs=1
@@ -15,11 +17,14 @@ rpmbuild=rpmbuild
 rpmbuildstage=a
 target=
 specfiles=
+strictrequires=0
 
 success=0;
 
 if [ -z "$BUILD_DIST" ]; then
     have_repo=0;
+elif ! . "$y2pmbuildconfdir/dists_common"; then
+    have_repo=0
 elif ! . "$y2pmbuildconfdir/dists/$BUILD_DIST" ; then
     have_repo=0
 else
@@ -29,7 +34,7 @@ fi
 if [ -z "$buildroot" ]; then
     user=`id -un`
     [ "$user" = root -a -n "$SUDO_USER" -a "$SUDO_USER" != root ] && user="$SUDO_USER"
-    buildroot="/var/tmp/build-root.$user"
+    buildroot="$buildrootbase.$user"
     [ -n "$BUILD_DIST" ] && buildroot="$buildroot.$BUILD_DIST"
 fi
 
@@ -183,8 +188,9 @@ installpackages()
 	set instlog $instlog
 	set quitonfail 1
 	set verbose 1
+	set build::strictrequires $strictrequires
 	EOF
-
+    
     regenrepository --init
 
     addsourcesfromrepository >> "$y2pmshcmds"
@@ -237,7 +243,7 @@ copysourcestobuildroot()
 	mkdir -p "$buildroot"/usr/src/packages/$i
     done
 
-    find . \( -type f -or -type l \) -and -not -name '.*' -maxdepth 1 \
+    find . -maxdepth 1 \( -type f -or -type l \) -and -not -name '.*' \
 	-print0 | \
 	xargs -0 -iXX cp -p XX "$buildroot"/usr/src/packages/SOURCES/
 }
@@ -326,6 +332,16 @@ setupicecream()
     echo "export ICECC_VERSION=/$icecc_vers" >> "$buildroot"/etc/profile.d/build_path.sh
 }
 
+copyextrafiles()
+{
+    [ "$have_repo" != 1 ] && return 0
+
+    [ -z "$copy_files" ] && return 0
+
+    echo "copying extra files"
+    cp -vua $copy_files $buildroot
+}
+
 determinerpmversion()
 {
     local a
@@ -349,7 +365,6 @@ mountfilesystems()
 
 setmemorylimit()
 {
-    set -x
     local mem
     while read mem; do
 	case "$mem" in
@@ -362,7 +377,6 @@ setmemorylimit()
 	    ;;
 	esac
     done < <(cat /proc/meminfo) # cat for proc stuff
-    set +x
 }
 
 helpandquit()
@@ -381,6 +395,7 @@ OPTIONS:
     --no-copy-repo	if called with repository, don't copy to repository
     --target=X          use X as rpm target
     --stage=X           use X as build stage (default: a)
+    --strictrequires    unresolved build requires cause build to abort
     --help		this screen
 
 EOF
@@ -390,7 +405,7 @@ EOF
 parsecmdline()
 {
     shortopts=
-    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,target:,stage:
+    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,target:,stage:,strictrequires
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
 	 -n 'y2pmbuild' -- "$@"`
 
@@ -410,6 +425,7 @@ parsecmdline()
 	    --help) helpandquit ;;
 	    --target) target="$2"; shift 2 ;;
 	    --stage) rpmbuildstage="$2"; shift 2 ;;
+	    --strictrequires) strictrequires=1; shift ;;
 	    --) shift ; break ;;
 	    *) echo "error parsing command line options" ; exit 1 ;;
 	esac
@@ -497,6 +513,8 @@ for spec in "$specfiles"; do
     setupicecream
 
     setupccache
+
+    copyextrafiles
 
     determinerpmversion
 
