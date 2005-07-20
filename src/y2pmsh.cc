@@ -229,6 +229,7 @@ class QuitHandler
 {
     public:
 	virtual void quit() {};
+	virtual ~QuitHandler() {};
 };
 
 class MediaReleaseQuitHandler : public QuitHandler

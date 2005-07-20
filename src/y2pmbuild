@@ -6,18 +6,28 @@ create_package_descr=/opt/kde3/share/apps/krpmview/create_package_descr
 : ${builduser:=compiler}
 : ${builddebugsolve:=0}
 
-buildrootbase="/var/tmp/build-root"
+builduserhome="/home/$builduser"
 
 ccache=0
 icecream=0
-bjobs=1
 quilt=0
 doinit=1
 rpmbuild=rpmbuild
 rpmbuildstage=a
-target=
+rpmbopts=()
+specdir=
 specfiles=
 strictrequires=0
+
+### config file keys
+add_sources=
+regen_repository=
+repository=
+buildrootbase="/var/tmp/build-root"
+extra_copy=
+rpm_sign_name=
+rpm_sign_key=
+###
 
 success=0;
 
@@ -44,6 +54,13 @@ fi
 
 neededpackages=
 
+removegpgkey()
+{
+    [ "$buildroot" = / ] && return 1
+
+    rm -rf $buildroot/.gnupg $buildroot/.build.key
+}
+
 cleanup()
 {
     set +e
@@ -60,6 +77,8 @@ cleanup()
 	echo -n "FAILED $spec at " >> "$buildroot/.build.packages"
 	date >> "$buildroot/.build.packages"
     fi
+
+    removegpgkey
 }
 
 regenrepository()
@@ -254,7 +273,7 @@ addbuilduser()
     if [ "$builduser" != "root" ]; then
 	if ! grep $builduser "$buildroot"/etc/passwd; then
 		echo adding user $builduser
-		chroot "$buildroot" /usr/sbin/useradd -m $builduser
+		chroot "$buildroot" /usr/sbin/useradd -m $builduser -d $builduserhome
 	fi
 	echo adjusting permissions
 	chroot "$buildroot" chown -R $builduser.root /usr/src/packages
@@ -336,10 +355,17 @@ copyextrafiles()
 {
     [ "$have_repo" != 1 ] && return 0
 
-    [ -z "$copy_files" ] && return 0
+    if [ -n "$BUILD_DIST" -a -d "$y2pmbuildconfdir/files/$BUILD_DIST/" ]; then
+	extra_copy="$y2pmbuildconfdir/files/$BUILD_DIST/ $extra_copy"
+    fi
 
-    echo "copying extra files"
-    cp -vua $copy_files $buildroot
+    [ -z "$extra_copy" ] && return 0
+
+    local dir
+    for dir in $extra_copy; do
+	echo "copying $dir"
+	rsync -av $dir $buildroot
+    done
 }
 
 determinerpmversion()
@@ -379,6 +405,51 @@ setmemorylimit()
     done < <(cat /proc/meminfo) # cat for proc stuff
 }
 
+# create a shell script from command line. Used for preserving arguments
+# through /bin/su -c
+toshellscript()
+{
+    echo "#!/bin/sh -x"
+    echo -n exec
+    for arg; do
+	arg=${arg/\$/\\\$}
+	arg=${arg/\"/\\\"}
+	arg=${arg/\`/\\\`}
+	arg=${arg/\\/\\\\}
+	echo -n " \"$arg\""
+    done
+    echo
+}
+
+createuserrpmmacros()
+{
+    > $buildroot$builduserhome/.rpmmacros
+}
+
+installgpgkey()
+{
+    removegpgkey
+
+    if [ -n "$rpm_sign_name" ]; then
+	echo 'installing gpg key ...'
+	[ -z "$rpm_sign_key" ] && rpm_sign_key="$y2pmbuildconfdir/signkey.asc"
+	install -d -m 700 $buildroot/.gnupg
+	install -m 600 "$rpm_sign_key" $buildroot/.build.key
+
+	chroot "$buildroot" chown $builduser /.gnupg /.build.key
+	chroot "$buildroot" su - $builduser -c "gpg -q --homedir /.gnupg --import /.build.key" < /dev/null
+
+	cat > $buildroot$builduserhome/.rpmmacros <<-EOF
+	%_gpg_name $rpm_sign_name
+	%_gpg_path /.gnupg
+	%_signature gpg
+	EOF
+
+	rpmbopts[${#rpmbopts[@]}]="--sign"
+    fi
+}
+
+
 helpandquit()
 {
     cat <<EOF
@@ -394,8 +465,12 @@ OPTIONS:
     --no-init		do not install any packages, just start compiling
     --no-copy-repo	if called with repository, don't copy to repository
     --target=X          use X as rpm target
+    --with=X            enable configure X for build
+    --without=X         disable configure X for build
+    --define='X Y'      define macro X with value Y
     --stage=X           use X as build stage (default: a)
     --strictrequires    unresolved build requires cause build to abort
+    --signas=X          sign built packages with id X
     --help		this screen
 
 EOF
@@ -404,8 +479,9 @@ EOF
 
 parsecmdline()
 {
+    local bjobs
     shortopts=
-    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,target:,stage:,strictrequires
+    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,signas:,target:,define:,with:,without:,stage:,strictrequires
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
 	 -n 'y2pmbuild' -- "$@"`
 
@@ -419,20 +495,29 @@ parsecmdline()
 	    --icecream) icecream=$2; bjobs=$icecream ; shift 2 ;;
 	    --jobs) bjobs=$2 ; shift 2 ;;
 	    --quilt) quilt=1 ; shift ;;
-	    --root) builduser=root ; shift ;;
+	    --root) builduser=root; builduserhome=/root ; shift ;;
 	    --no-init) doinit=0 ; shift ;;
 	    --no-copy-repo) no_copy_repo=1 ; shift ;;
 	    --help) helpandquit ;;
-	    --target) target="$2"; shift 2 ;;
+	    --target|--define|--with|--without)
+		    rpmbopts[${#rpmbopts[@]}]="$1";
+		    rpmbopts[${#rpmbopts[@]}]="$2";
+		    shift 2 ;;
 	    --stage) rpmbuildstage="$2"; shift 2 ;;
+	    --signas) rpm_sign_name="$2"; shift 2 ;;
 	    --strictrequires) strictrequires=1; shift ;;
 	    --) shift ; break ;;
 	    *) echo "error parsing command line options" ; exit 1 ;;
 	esac
     done
+
+    if [ "$bjobs" -gt 1 ]; then
+	rpmbopts[${#rpmbopts[@]}]='-D'
+	rpmbopts[${#rpmbopts[@]}]="jobs $bjobs"
+    fi
+
     specfiles="$*"
 }
-
 
 set -e
 
@@ -488,7 +573,16 @@ if [ -z "$specfiles" ]; then
     exit 1
 fi
 
-for spec in "$specfiles"; do
+mountfilesystems
+
+for spec in $specfiles; do
+
+    case "$spec" in
+	*/*) specdir=${spec%/*}; spec=${spec##*/} ;;
+	*) specdir=. ;;
+    esac
+
+    pushd $specdir
 
     echo -n "start $spec at " >> "$buildroot/.build.packages"
     date >> "$buildroot/.build.packages"
@@ -496,8 +590,6 @@ for spec in "$specfiles"; do
     parse_spec $spec
 
     getneededforbuild
-
-    mountfilesystems
 
     if [ "$doinit" -eq 1 ]; then
 	setuptimezone
@@ -516,6 +608,10 @@ for spec in "$specfiles"; do
 
     copyextrafiles
 
+    createuserrpmmacros
+
+    installgpgkey
+
     determinerpmversion
 
     setmemorylimit
@@ -527,23 +623,20 @@ for spec in "$specfiles"; do
     echo -----------------------------------------------------------------
     echo -----------------------------------------------------------------
 
-    if [ -n "$target" ]; then
-	target="--target $target"
-    fi
-
-    if [ "$bjobs" -gt 1 ]; then
-	bjobs="-D 'jobs $bjobs'"
-    else
-	bjobs=""
-    fi
-
-    chroot "$buildroot" su - $builduser -c "$rpmbuild --nodeps $target $bjobs -b$rpmbuildstage /usr/src/packages/SOURCES/$spec" < /dev/null
+    toshellscript $rpmbuild --nodeps \
+	-b$rpmbuildstage "${rpmbopts[@]}" \
+	/usr/src/packages/SOURCES/$spec \
+	> $buildroot/.build.command
+    chmod 755 $buildroot/.build.command
+    chroot "$buildroot" su - $builduser -c /.build.command < /dev/null
 
     success=1;
     echo -n "done $spec at " >> "$buildroot/.build.packages"
     date >> "$buildroot/.build.packages"
 
     copyfilestorepository
+
+    popd
 
 done
 

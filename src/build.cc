@@ -211,7 +211,7 @@ int buildsolve(vector<string>& argv)
     computechanges(need, keep, install, update, remove, true);
 
     cout << "after first run "
-	<< stringutil::form("keep %ld, install %ld, update %ld, remove %ld",
+	<< stringutil::form("keep %zd, install %zd, update %zd, remove %zd",
 	    keep.size(),install.size(),update.size(),remove.size()) << endl;
 
     success = Y2PM::packageManager().solveInstall(good, bad, true);
@@ -219,7 +219,7 @@ int buildsolve(vector<string>& argv)
     computechanges(need, keep, install, update, remove, false);
 
     cout << "after second run "
-	<< stringutil::form("keep %ld, install %ld, update %ld, remove %ld",
+	<< stringutil::form("keep %zd, install %zd, update %zd, remove %zd",
 	    keep.size(),install.size(),update.size(),remove.size()) << endl;
 
     build_printstringset("install", install);
