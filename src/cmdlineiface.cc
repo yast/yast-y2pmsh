@@ -253,4 +253,8 @@ std::vector<std::string> CmdLineIface::Completer::completions(const std::string 
     return vector<string>();
 }
 
+CmdLineIface::Completer::~Completer()
+{
+}
+
 // vim: sw=4

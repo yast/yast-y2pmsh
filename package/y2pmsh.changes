@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Wed Jul 20 13:09:56 CEST 2005 - lnussel@suse.de
+
+- add libxml2 to neededforbuild
+- fix compiler warnings
+- y2pmbuild: add support for signing packages
+- y2pmbuild: pass through --with, --without and --define options
+- y2pmbuild: fix building multiple spec files in a row
+- y2pmbuild: rename copy_files -> extra_copy, use rsync
+- 2.12.0
+
+-------------------------------------------------------------------
 Fri Jul  1 11:46:59 CEST 2005 - lnussel@suse.de
 
 - y2pmbuild: use common config file for all distros

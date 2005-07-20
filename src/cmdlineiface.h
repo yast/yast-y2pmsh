@@ -14,6 +14,7 @@ class CmdLineIface
 	    public:
 		virtual const std::string command();
 		virtual std::vector<std::string> completions(const std::string word);
+		virtual ~Completer();
 	};
 
     private:
