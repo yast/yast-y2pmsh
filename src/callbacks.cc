@@ -12,6 +12,10 @@
 #include <y2pm/MediaCallbacks.h>
 #endif
 
+#ifndef SUSE93COMPAT
+#include <y2pm/InstSrcManagerCallbacks.h>
+#endif
+
 #include "y2pmsh.h"
 #include "callbacks.h"
 #include "dotpainter.h"
@@ -325,6 +329,82 @@ class ScanDbCallback : RpmDbCallbacks::ScanDbCallback
 	}
 };
 
+#ifndef SUSE93COMPAT
+class SourceRefreshCallback : public InstSrcManagerCallbacks::SourceRefreshCallback
+{
+    public:
+	SourceRefreshCallback()
+	{
+	    InstSrcManagerCallbacks::sourceRefreshReport.redirectTo(*this);
+	}
+	virtual void start(constInstSrcDescrPtr descr)
+	{
+	    string label = descr?descr->content_label():"???";
+	    cout << "refreshing " << label << "... " << flush;
+	}
+	virtual Result error( Error error, const std::string & detail )
+	{
+	    switch (error)
+	    {
+		case NO_SOURCE_FOUND:
+		    cout << "no source found" << endl;
+		    break;
+		case INCOMPLETE_SOURCE_DATA:
+		    cout << "incomplete data" << endl;
+		    break;
+	    }
+	    if(!detail.empty())
+		cout << ": " << detail;
+	    cout << endl;
+
+	    return SKIP_REFRESH;
+	}
+	virtual void stop( Result result, Cause cause, const std::string & detail )
+	{
+	    switch(result)
+	    {
+		case SUCCESS:
+		    cout << "ok";
+		    break;
+		case RETRY:
+		    cout << "retry";
+		    break;
+		case SKIP_REFRESH:
+		    cout << "skipped";
+		    break;
+		case DISABLE_SOURCE:
+		    cout << "disabled";
+		    break;
+	    }
+
+	    switch (cause)
+	    {
+		case REFRESH_SKIP_CD_DVD:
+		    cout << " (doesn't change)";
+		    break;
+		case REFRESH_NOT_SUPPORTED_BY_SOURCE:
+		    cout << " (not supported)";
+		    break;
+		case SOURCE_IS_UPTODATE:
+		    cout << " (already up to date)";
+		    break;
+		case SOURCE_REFRESHED:
+		    cout << " (source refreshed)";
+		    break;
+		case USERREQUEST:
+		    cout << " (requested by user)";
+		    break;
+	    }
+
+	    if(!detail.empty())
+	    {
+		cout << ' ' << detail;
+	    }
+
+	    cout << endl;
+	}
+};
+#endif
 
 #ifndef SUSE90COMPAT
 static CommitProvideCallback commitprovidecallback;
@@ -337,3 +417,7 @@ static CommitInstallCallback commitinstallcallback;
 static CommitRemoveCallback commitremovecallback;
 
 static ScanDbCallback scandbcallback;
+
+#ifndef SUSE93COMPAT
+static SourceRefreshCallback sourcerefreshcallback;
+#endif

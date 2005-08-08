@@ -7,6 +7,9 @@
 Summary:      Shell interface for the YaST2 packagemanager
 Source1:      libtecla-1.5.0.tar.gz
 Requires:     rsync
+%if %suse_version > 930
+Requires:     yast2-packagemanager > 2.12.10
+%endif
 
 %description
 -
@@ -19,6 +22,9 @@ CFLAGS="%{optflags}"
 CXXFLAGS="%{optflags}"
 %if %suse_version < 901
 CXXFLAGS="$CXXFLAGS -DSUSE90COMPAT"
+%endif
+%if %suse_version < 931
+CXXFLAGS="$CXXFLAGS -DSUSE93COMPAT"
 %endif
 cd libtecla
 %{suse_update_config -f}
