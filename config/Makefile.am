@@ -1,7 +1,7 @@
 y2pmbuildconf_DATA = dists_common
 y2pmbuildconfdir = $(sysconfdir)/y2pmbuild
 
-y2pmbuildconfdists_DATA = 9.3 9.2 9.1 9.0 8.2
+y2pmbuildconfdists_DATA = 10.0 9.3 9.2 9.1 9.0 8.2 8.1
 y2pmbuildconfdistsdir = $(y2pmbuildconfdir)/dists
 
 y2pmbuildconffilesdir = $(y2pmbuildconfdir)/files

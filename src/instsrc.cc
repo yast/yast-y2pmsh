@@ -32,6 +32,7 @@ int enablesources(vector<string>& argv)
 }
 
 
+#ifdef SUSE93COMPAT
 /** this is a hack since y2pm does not allow updating sources. we remember the
  * url and position of the source and delete it. then we add a new source and
  * adjust the rank until the sources's position matches the previously
@@ -131,6 +132,76 @@ static int source_update(const vector<string>& argv, unsigned parampos)
     }
     return 0;
 }
+#else
+static int source_update(const vector<string>& argv, unsigned parampos)
+{
+    while(parampos < argv.size())
+    {
+	InstSrcManager::ISrcIdList isrclist;
+	Y2PM::instSrcManager().getSources(isrclist);
+
+	unsigned num = atoi(argv[parampos++].c_str());
+	if(num >= isrclist.size())
+	{
+	    cout << "invalid number" << endl;
+	    return 1;
+	}
+
+	unsigned count = 0;
+	for(InstSrcManager::ISrcIdList::iterator it = isrclist.begin();
+		it != isrclist.end(); ++it, count++)
+	{
+	    if(count != num)
+		continue;
+
+	    PMError err = Y2PM::instSrcManager().refreshSource(*it, true);
+	    if( err != PMError::E_ok)
+	    {
+		cout << "Error: " << err << endl;
+		return 1;
+	    }
+	}
+    }
+
+    return 0;
+}
+#endif
+
+static int source_set_autorefresh(bool yes, const vector<string>& argv, unsigned parampos)
+{
+#ifndef SUSE93COMPAT
+    while(parampos < argv.size())
+    {
+	InstSrcManager::ISrcIdList isrclist;
+	Y2PM::instSrcManager().getSources(isrclist);
+
+	unsigned num = atoi(argv[parampos++].c_str());
+	if(num >= isrclist.size())
+	{
+	    cout << "invalid number" << endl;
+	    return 1;
+	}
+
+	unsigned count = 0;
+	for(InstSrcManager::ISrcIdList::iterator it = isrclist.begin();
+		it != isrclist.end(); ++it, count++)
+	{
+	    if(count != num)
+		continue;
+
+	    PMError err = Y2PM::instSrcManager().setAutorefresh(*it, yes);
+	    if( err != PMError::E_ok)
+	    {
+		cout << "Error: " << err << endl;
+		return 1;
+	    }
+	}
+    }
+#else
+    cout << "feature not supported" << endl;
+#endif
+    return 0;
+}
 
 static void showsource(constInstSrcPtr src)
 {
@@ -142,16 +213,31 @@ static void showsource(constInstSrcPtr src)
     else
 	on = descr->default_activate();
 
-    cout << stringutil::form("[%c] %s (%s)\n",
+    cout << stringutil::form("[%c] %s (%s)",
 	on?'x':' ',
 	descr->content_label().c_str(),
 	descr->url().asString().c_str());
+#ifndef SUSE93COMPAT
+    if(descr->default_refresh())
+	cout << " [autorefresh]";
+#endif
+    cout << '\n';
 }
 
 int source(vector<string>& argv)
 {
     InstSrcManager::ISrcIdList isrclist;
-    enum { src_show, src_enable, src_disable, src_add, src_remove, src_update, src_product } mode = src_show;
+    enum {
+	src_show,
+	src_enable,
+	src_disable,
+	src_add,
+	src_remove,
+	src_update,
+	src_product,
+	src_enable_autorefresh,
+	src_disable_autorefresh
+    } mode = src_show;
     int ret = 0;
 
     if(argv.size()<2 || argv[1] == "--help")
@@ -163,6 +249,10 @@ int source(vector<string>& argv)
 	h.Parameter(HelpScreenParameter("-u ID", "--update ID", "updated cached data for ID"));
 	h.Parameter(HelpScreenParameter("-R ID", "--remove ID", "remove source number ID"));
 	h.Parameter(HelpScreenParameter("-P ID", "--product ID", "install source number ID as product"));
+#ifndef SUSE93COMPAT
+	h.Parameter(HelpScreenParameter("-A ID", "--autorefresh ID", "enable autorefresh on source number ID"));
+	h.Parameter(HelpScreenParameter("", "--noautorefresh ID", "disable autorefresh on source number ID"));
+#endif
 	h.Parameter(HelpScreenParameter("-s", "--show", "show known sources"));
 	cout << h;
 	return 0;
@@ -224,6 +314,24 @@ int source(vector<string>& argv)
 	    return 1;
 	}
 	mode = src_product;
+    }
+    else if(param == "--autorefresh" || param == "-A")
+    {
+	if (parampos >= argv.size())
+	{
+	    cout << "must specify number" << endl;
+	    return 1;
+	}
+	mode = src_enable_autorefresh;
+    }
+    else if(param == "--noautorefresh")
+    {
+	if (parampos >= argv.size())
+	{
+	    cout << "must specify number" << endl;
+	    return 1;
+	}
+	mode = src_disable_autorefresh;
     }
     else if(param == "--show" || param == "-s")
     {
@@ -369,6 +477,14 @@ int source(vector<string>& argv)
 		    cerr << error << endl;
 		}
 	    }
+	} break;
+	case src_enable_autorefresh:
+	{
+	    ret = source_set_autorefresh(true, argv, parampos);
+	} break;
+	case src_disable_autorefresh:
+	{
+	    ret = source_set_autorefresh(false, argv, parampos);
 	} break;
 	case src_show:
 	{

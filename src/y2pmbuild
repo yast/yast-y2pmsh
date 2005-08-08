@@ -479,7 +479,7 @@ EOF
 
 parsecmdline()
 {
-    local bjobs
+    local bjobs=0
     shortopts=
     longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,signas:,target:,define:,with:,without:,stage:,strictrequires
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
@@ -492,8 +492,8 @@ parsecmdline()
     while true ; do
 	case "$1" in
 	    --ccache) ccache=1 ; shift ;;
-	    --icecream) icecream=$2; bjobs=$icecream ; shift 2 ;;
-	    --jobs) bjobs=$2 ; shift 2 ;;
+	    --icecream) icecream="$2"; bjobs="$icecream" ; shift 2 ;;
+	    --jobs) bjobs="$2" ; shift 2 ;;
 	    --quilt) quilt=1 ; shift ;;
 	    --root) builduser=root; builduserhome=/root ; shift ;;
 	    --no-init) doinit=0 ; shift ;;
