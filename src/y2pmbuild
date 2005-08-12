@@ -1,7 +1,6 @@
 #!/bin/bash
 
 y2pmbuildconfdir=/etc/y2pmbuild
-create_package_descr=/opt/kde3/share/apps/krpmview/create_package_descr
 
 : ${builduser:=compiler}
 : ${builddebugsolve:=0}
@@ -49,10 +48,12 @@ if [ -z "$buildroot" ]; then
 fi
 
 if [ -z "$defaultpackages" ]; then
-    defaultpackages="fillup attr acl aaa_base filesystem autoconf automake bash binutils bison bzip2 cpio cpp cracklib cyrus-sasl db devs diffutils e2fsprogs file findutils flex gawk gcc gdbm gdbm-devel gettext glibc glibc-devel glibc-locale gpm grep groff gzip kbd less libgcc libstdc++ libtool libxcrypt zlib m4 make man mktemp modutils ncurses ncurses-devel net-tools netcfg pam pam-devel pam-modules patch perl permissions ps rcs readline rpm sed sendmail shadow strace syslogd sysvinit tar texinfo timezone unzip util-linux vim zlib-devel pwdutils"
+    defaultpackages="aaa_base acl attr bash bind-utils bison bzip2 coreutils cpio cpp cracklib cvs cyrus-sasl db devs diffutils e2fsprogs file filesystem fillup findutils flex gawk gdbm-devel gettext-devel glibc glibc-devel glibc-locale gpm grep groff gzip info insserv klogd less libacl libattr libcom_err libgcc libnscd libselinux libstdc++ libxcrypt libzio m4 make man mktemp module-init-tools ncurses ncurses-devel net-tools netcfg openldap2-client openssl pam pam-modules patch permissions popt procinfo procps psmisc pwdutils rcs readline sed strace sysvinit tar tcpd texinfo timezone unzip util-linux vim zlib zlib-devel autoconf automake binutils gcc gdbm gettext libtool perl rpm"
 fi
 
 neededpackages=
+
+: ${create_package_descr:=/opt/kde3/share/apps/krpmview/create_package_descr}
 
 removegpgkey()
 {
@@ -95,17 +96,31 @@ regenrepository()
 
     [ "$do_regen" = "0" ] && return 0
     
-    if [ "$regen_repository" = plain ]; then
-	pushd .
-	cd "$repository"
-	genIS_PLAINcache -f -r "$repository"
-	popd
-    elif [ "$regen_repository" = ul ]; then
-	pushd .
-	cd "$repository"
-	$create_package_descr
-	popd
-    fi
+    local i
+
+    for i in $regen_repository; do
+	if [ "$i" = 'plain' ]; then
+	    pushd .
+	    cd "$repository"
+	    genIS_PLAINcache -f -r "$repository"
+	    popd
+	elif [ "$i" = 'yum' ]; then
+	    if [ -x '/usr/bin/createrepo' ]; then
+		/usr/bin/createrepo "$repository"
+	    else
+		echo 'createrepo not found, not creating yum source'
+	    fi
+	elif [ "$i" = 'ul' ]; then
+	    if [ -x "$create_package_descr" ]; then
+		pushd .
+		cd "$repository"
+		$create_package_descr
+		popd
+	    else
+		echo "$create_package_descr not found, not creating ul source"
+	    fi
+	fi
+    done
 }
 
 addsourcesfromrepository()
@@ -170,6 +185,7 @@ parse_spec()
 # $1 specfile
 getneededforbuild()
 {
+    local seen_aaa_base=0
     for i in $spec_usedforbuild; do
 	case "$i" in
 	\#*)
@@ -178,6 +194,7 @@ getneededforbuild()
 	;;
 	*)
 	    neededpackages="$neededpackages $i"
+	    [ "$i" = 'aaa_base' ] && seen_aaa_base=1
 	;;
 	esac
     done
@@ -189,6 +206,13 @@ getneededforbuild()
     fi
     if [ "$quilt" -eq 1 ]; then
 	neededpackages="$neededpackages quilt"
+    fi
+
+    if [ "$seen_aaa_base" != 1 ]; then
+	echo "aaa_base not in BuildRequires, adding default packages"
+	neededpackages="$defaultpackages $neededpackages"
+    else
+	echo "aaa_base in BuildRequires, not adding default packages"
     fi
 }
 
@@ -217,7 +241,7 @@ installpackages()
     cat >> "$y2pmshcmds" <<-EOF
 	source -s
 	set debug $builddebugsolve
-	buildsolve $neededpackages $defaultpackages
+	buildsolve $neededpackages
 	set debug 0
 	summary
 	commit
