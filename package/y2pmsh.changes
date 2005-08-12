@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Fri Aug 12 11:05:59 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: also generate YUM source in repository
+- y2pmbuild: don't add default set of package if aaa_base is already
+  in build requires. Prevents sendmail/postfix conflict when
+  building new spec on old distro.
+- remove package with install command if package name is prefixed
+  with a dash
+- 2.12.2
+
+-------------------------------------------------------------------
 Mon Aug  8 13:15:19 CEST 2005 - lnussel@suse.de
 
 - y2pmbuild: fix uninitialized variable (#102520)

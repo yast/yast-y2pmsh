@@ -1,8 +1,9 @@
 # where to store built rpms
 repository="/var/spool/y2pmbuild/$BUILD_DIST"
 
-# run genIS_PLAINcache?
-regen_repository="plain"
+# type of installation source to generate in repository
+# either plain or yum or both
+regen_repository="plain yum"
 
 # additional sources, specify with url_...
 add_sources="suse"

@@ -64,6 +64,20 @@ static bool filltoinstall(PkgSet& toinstall, vector<string>& argv, PkgDep::Error
 
 	if(pkg.empty()) continue;
 
+	if(pkg[0] == '-')
+	{
+	    pkg = pkg.substr(1);
+
+	    if(pkg.empty()) continue;
+
+	    if(toinstall.lookup(PkgName(pkg)))
+	    {
+		toinstall.remove(PkgName(pkg));
+		--nt;
+	    }
+	    continue;
+	}
+
 	PMSelectablePtr selp = Y2PM::packageManager().getItem(pkg);
 	if(!selp || !selp->has_candidate())
 	{

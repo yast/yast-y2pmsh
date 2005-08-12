@@ -557,6 +557,7 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
     bool force = false;
     bool help = false;
 
+    set<PMSelectablePtr> todel;
     vector<string>::iterator it;
 
     if(argv.size() == 1)
@@ -568,10 +569,18 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
 	for(it = argv.begin()+1;
 	    it != argv.end(); ++it)
 	{
-	    if(it->size() && (*it)[0] != '-') break;
+	    if(!it->empty() && (*it)[0] != '-') break; 
+	    if(*it == "--") { ++it; break; }
+
 	    if(*it == "-h" || *it == "--help") help = true;
-	    if(*it == "-a" || *it == "--all") installall = true;
-	    if(*it == "-f" || *it == "--force") force = true;
+	    else if(*it == "-a" || *it == "--all") installall = true;
+	    else if(*it == "-f" || *it == "--force") force = true;
+	    else if((*it)[0] == '-')
+	    {
+		cout << "invalid parameter " << *it << endl;
+		help = true;
+		break;
+	    }
 	}
     }
 
@@ -594,10 +603,18 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
     {
 	for (; it != argv.end(); ++it)
 	{
+	    bool remove = false;
 	    string pkg = stringutil::trim(*it);
 
 	    if(pkg.empty()) continue;
 	
+	    if(pkg[0] == '-')
+	    {
+		remove = true;
+		pkg = pkg.substr(1);
+
+		if(pkg.empty()) continue;
+	    }
 
 	    PMSelectablePtr selp;
 	    PkgEdition ed;
@@ -656,6 +673,8 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
 	    }
 	    
 	    vec.insert(selp);
+	    if(remove)
+		todel.insert(selp);
 	}
 	begin=vec.begin();
 	end=vec.end();
@@ -665,20 +684,30 @@ static int install_internal(PMManager& manager, vector<string>& argv, bool appl=
     {
 	bool ok;
 
-	if(!(*it)->has_candidate())
-	    continue;
-
-	if(!force && (*it)->downgrade_condition())
+	if(todel.find(*it) != todel.end())
 	{
-	    if(!installall)
-		cout << "not downgrading " << (*it)->name() << endl;
-	    continue;
+	    if(appl)
+		ok = (*it)->appl_set_offSystem();
+	    else
+		ok = (*it)->user_set_offSystem();
 	}
-
-	if(appl)
-	    ok = (*it)->appl_set_install();
 	else
-	    ok = (*it)->user_set_install();
+	{
+	    if(!(*it)->has_candidate())
+		continue;
+
+	    if(!force && !(*it)->to_delete() && (*it)->downgrade_condition())
+	    {
+		if(!installall)
+		    cout << "not downgrading " << (*it)->name() << endl;
+		continue;
+	    }
+
+	    if(appl)
+		ok = (*it)->appl_set_install();
+	    else
+		ok = (*it)->user_set_install();
+	}
 
 	if(!ok)
 	{
