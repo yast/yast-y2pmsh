@@ -618,6 +618,7 @@ for spec in $specfiles; do
     if [ "$doinit" -eq 1 ]; then
 	setuptimezone
 	installpackages
+	copyextrafiles
 	runsuseconfig
 	runldconfig
     fi
@@ -629,8 +630,6 @@ for spec in $specfiles; do
     setupicecream
 
     setupccache
-
-    copyextrafiles
 
     createuserrpmmacros
 

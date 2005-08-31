@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Wed Aug 31 11:51:37 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: copy extra files before running SuSEconfig (#114362)
+
+-------------------------------------------------------------------
 Fri Aug 12 11:05:59 CEST 2005 - lnussel@suse.de
 
 - y2pmbuild: also generate YUM source in repository
