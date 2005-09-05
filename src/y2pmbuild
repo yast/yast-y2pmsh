@@ -17,6 +17,8 @@ rpmbopts=()
 specdir=
 specfiles=
 strictrequires=0
+create_baselibs=0
+extra_packs=
 
 ### config file keys
 add_sources=
@@ -73,6 +75,7 @@ cleanup()
     fi
 
     rm -f "$buildroot/.locked"
+    rm -rf "$buildroot/.mkbaselibs"
 
     if [ "$success" = 0 ]; then
 	echo -n "FAILED $spec at " >> "$buildroot/.build.packages"
@@ -108,7 +111,7 @@ regenrepository()
 	    if [ -x '/usr/bin/createrepo' ]; then
 		/usr/bin/createrepo "$repository"
 	    else
-		echo 'createrepo not found, not creating yum source'
+		echo -e '\e[34mcreaterepo not found, not creating yum source\e[m'
 	    fi
 	elif [ "$i" = 'ul' ]; then
 	    if [ -x "$create_package_descr" ]; then
@@ -207,6 +210,10 @@ getneededforbuild()
     if [ "$quilt" -eq 1 ]; then
 	neededpackages="$neededpackages quilt"
     fi
+    if [ "$create_baselibs" -eq 1 ]; then
+	neededpackages="$neededpackages build"
+    fi
+    neededpackages="$neededpackages $extra_packs"
 
     if [ "$seen_aaa_base" != 1 ]; then
 	echo "aaa_base not in BuildRequires, adding default packages"
@@ -473,6 +480,45 @@ installgpgkey()
     fi
 }
 
+docreate_baselibs()
+{
+    [ "$create_baselibs" -ne 1 ] && return
+    
+    echo "creating baselibs ..."
+    local f brpms baselibs_cfg
+    brpms=
+    for f in $buildroot/usr/src/packages/RPMS/*/*.rpm ; do
+        brpms="$brpms ${f#$buildroot}"
+    done
+    if test -e $buildroot/usr/src/packages/SOURCES/baselibs.conf ; then
+	baselibs_cfg="-c /usr/src/packages/SOURCES/baselibs.conf"
+    fi
+    if test -f $buildroot/usr/lib/build/mkbaselibs ; then
+	if test -z "$baselibs_cfg" -a -e $buildroot/usr/lib/build/baselibs.conf ; then
+	    baselibs_cfg="-c /usr/lib/build/baselibs.conf"
+	fi
+	toshellscript /usr/lib/build/mkbaselibs -c /usr/lib/build/baselibs_global.conf \
+	    $baselibs_cfg $brpms > $buildroot/.mkbaselibs.command
+    elif test -f /usr/lib/build/mkbaselibs; then
+	# use external version
+	rm -rf $buildroot/.mkbaselibs
+	mkdir -p $buildroot/.mkbaselibs
+	cp -f /usr/lib/build/mkbaselibs $buildroot/.mkbaselibs
+	cp -f /usr/lib/build/baselibs_global.conf $buildroot/.mkbaselibs
+	if test -z "$baselibs_cfg" -a -e /usr/lib/build/baselibs.conf; then
+	    cp -f /usr/lib/build/baselibs.conf $buildroot/.mkbaselibs/baselibs.conf
+	    baselibs_cfg="-c /.mkbaselibs/baselibs.conf"
+	fi
+	toshellscript /.mkbaselibs/mkbaselibs -c /.mkbaselibs/baselibs_global.conf \
+	    $baselibs_cfg $brpms > $buildroot/.mkbaselibs.command
+    else
+	echo -e "\e[34mmkbaselibs not installed, not creating baselibs packages\e[m"
+	return
+    fi
+
+    chmod 755 $buildroot/.mkbaselibs.command
+    chroot "$buildroot" su - $builduser -c /.mkbaselibs.command < /dev/null
+}
 
 helpandquit()
 {
@@ -495,6 +541,8 @@ OPTIONS:
     --stage=X           use X as build stage (default: a)
     --strictrequires    unresolved build requires cause build to abort
     --signas=X          sign built packages with id X
+    --baselibs          Create -32bit/-64bit/-x86 rpms for other architectures
+    --extra-packs=X     Also install the listed packages.
     --help		this screen
 
 EOF
@@ -505,7 +553,7 @@ parsecmdline()
 {
     local bjobs=0
     shortopts=
-    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,signas:,target:,define:,with:,without:,stage:,strictrequires
+    longopts=icecream:,jobs:,ccache,root,no-init,quilt,no-copy-repo,help,signas:,target:,define:,with:,without:,stage:,strictrequires,baselibs,extra-packs:
     getopt_tmp=`getopt -o "$shortops" --long "$longopts" \
 	 -n 'y2pmbuild' -- "$@"`
 
@@ -530,6 +578,8 @@ parsecmdline()
 	    --stage) rpmbuildstage="$2"; shift 2 ;;
 	    --signas) rpm_sign_name="$2"; shift 2 ;;
 	    --strictrequires) strictrequires=1; shift ;;
+	    --baselibs) create_baselibs=1; shift ;;
+	    --extra-packs) extra_packs="$extra_packs $2"; shift 2 ;;
 	    --) shift ; break ;;
 	    *) echo "error parsing command line options" ; exit 1 ;;
 	esac
@@ -652,6 +702,8 @@ for spec in $specfiles; do
 	> $buildroot/.build.command
     chmod 755 $buildroot/.build.command
     chroot "$buildroot" su - $builduser -c /.build.command < /dev/null
+
+    docreate_baselibs
 
     success=1;
     echo -n "done $spec at " >> "$buildroot/.build.packages"

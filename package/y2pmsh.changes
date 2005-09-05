@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Sep  5 17:31:06 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: add --baselibs and --extra-packs to stay in sync with
+  'build' (#115318)
+- 2.12.4
+
+-------------------------------------------------------------------
 Wed Aug 31 11:51:37 CEST 2005 - lnussel@suse.de
 
 - y2pmbuild: copy extra files before running SuSEconfig (#114362)
