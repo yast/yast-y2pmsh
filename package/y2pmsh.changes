@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Oct 14 15:51:35 CEST 2005 - ma@suse.de
+
+- Adapt to new packagemanager callbacks.
+- 2.12.5
+
+-------------------------------------------------------------------
 Mon Sep  5 17:31:06 CEST 2005 - lnussel@suse.de
 
 - y2pmbuild: add --baselibs and --extra-packs to stay in sync with
