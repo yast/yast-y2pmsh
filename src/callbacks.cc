@@ -114,9 +114,10 @@ class DownloadCallback : public MediaCallbacks::DownloadProgressCallback
 	virtual void start( const Url & url_r, const Pathname & localpath_r )
 	{
 	}
-	virtual void progress( const ProgressData & prg )
+	virtual bool progress( const ProgressData & prg )
 	{
 	    _dp.progress(prg);
+            return true;
 	}
 	virtual void stop( PMError error )
 	{
@@ -155,7 +156,7 @@ class RebuildDbCallback : public RpmDbCallbacks::RebuildDbCallback
 	{
 	    RpmDbCallbacks::rebuildDbReport.redirectTo(*this);
 	}
-	
+
 	virtual void start()
 	{
 	    _dp.start("rebuilding RPM database ");
