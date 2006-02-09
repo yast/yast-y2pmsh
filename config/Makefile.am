@@ -10,7 +10,7 @@ y2pmbuildconfmacrosdir = $(y2pmbuildconfdir)/macros
 
 bin_SCRIPTS = sudoy2pmbuild
 
-EXTRA_DIST = $(bin_SCRIPTS) $(y2pmbuildconf_DATA) $(y2pmbuildconfdists_DATA) $(wildcard macros_*)
+EXTRA_DIST = $(bin_SCRIPTS) $(y2pmbuildconf_DATA) $(y2pmbuildconfdists_DATA) macros
 
 install-exec-local:
 	for dist in $(y2pmbuildconfdists_DATA); do \
