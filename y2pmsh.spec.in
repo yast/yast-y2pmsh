@@ -3,13 +3,10 @@
 # norootforbuild
 
 @HEADER@
-BuildRequires:	gcc-c++ yast2-packagemanager-devel
+BuildRequires:	gcc-c++ yast2-packagemanager-devel rpm-devel curl-devel openslp-devel
 Summary:      Shell interface for the YaST2 packagemanager
 Source1:      libtecla-1.5.0.tar.gz
 Requires:     rsync
-%if %suse_version > 930
-Requires:     yast2-packagemanager > 2.12.10
-%endif
 
 %description
 -
@@ -25,6 +22,9 @@ CXXFLAGS="$CXXFLAGS -DSUSE90COMPAT"
 %endif
 %if %suse_version < 931
 CXXFLAGS="$CXXFLAGS -DSUSE93COMPAT"
+%endif
+%if %suse_version < 1001
+CXXFLAGS="$CXXFLAGS -DSUSE100COMPAT"
 %endif
 cd libtecla
 %{suse_update_config -f}
@@ -54,6 +54,9 @@ install -m 644 patches-9.0/*.diff %{buildroot}%{_docdir}/%{name}/patches-9.0
 %dir %{_sysconfdir}/y2pmbuild
 %dir %{_sysconfdir}/y2pmbuild/dists
 %dir %{_sysconfdir}/y2pmbuild/files
+%dir %{_sysconfdir}/y2pmbuild/macros
 %config(noreplace) %{_sysconfdir}/y2pmbuild/dists/*
 %config(noreplace) %{_sysconfdir}/y2pmbuild/files/*
+%config(noreplace) %{_sysconfdir}/y2pmbuild/macros/*
 %config(noreplace) %{_sysconfdir}/y2pmbuild/dists_common
+%{_datadir}/y2pmsh

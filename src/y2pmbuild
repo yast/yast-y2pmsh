@@ -1,6 +1,7 @@
 #!/bin/bash
 
 y2pmbuildconfdir=/etc/y2pmbuild
+y2pmbuilddatadir=/usr/share/y2pmsh
 
 : ${builduser:=compiler}
 : ${builddebugsolve:=0}
@@ -14,6 +15,7 @@ doinit=1
 rpmbuild=rpmbuild
 rpmbuildstage=a
 rpmbopts=()
+definesnstuff=()
 specdir=
 specfiles=
 strictrequires=0
@@ -50,7 +52,7 @@ if [ -z "$buildroot" ]; then
 fi
 
 if [ -z "$defaultpackages" ]; then
-    defaultpackages="aaa_base acl attr bash bind-utils bison bzip2 coreutils cpio cpp cracklib cvs cyrus-sasl db devs diffutils e2fsprogs file filesystem fillup findutils flex gawk gdbm-devel gettext-devel glibc glibc-devel glibc-locale gpm grep groff gzip info insserv klogd less libacl libattr libcom_err libgcc libnscd libselinux libstdc++ libxcrypt libzio m4 make man mktemp module-init-tools ncurses ncurses-devel net-tools netcfg openldap2-client openssl pam pam-modules patch permissions popt procinfo procps psmisc pwdutils rcs readline sed strace sysvinit tar tcpd texinfo timezone unzip util-linux vim zlib zlib-devel autoconf automake binutils gcc gdbm gettext libtool perl rpm"
+    defaultpackages="aaa_base acl attr bash bind-libs bind-utils bison bzip2 coreutils cpio cpp cracklib cvs cyrus-sasl db diffutils e2fsprogs file filesystem fillup findutils flex gawk gdbm-devel gettext-devel glibc glibc-devel glibc-locale gpm grep groff gzip info insserv klogd less libacl libattr libcom_err libgcc libnscd libstdc++ libxcrypt libzio m4 make man mktemp module-init-tools ncurses ncurses-devel net-tools netcfg openldap2-client openssl pam pam-modules patch permissions popt procinfo procps psmisc pwdutils rcs readline sed strace sysvinit tar tcpd texinfo timezone unzip util-linux vim zlib zlib-devel autoconf automake binutils gcc gdbm gettext libtool perl rpm"
 fi
 
 neededpackages=
@@ -174,33 +176,68 @@ copyfilestorepository()
 
 parse_spec()
 {
-    file="$1";
-    [ ! -e "$file" ] && return 1
-    spec_usedforbuild=`grep "^# *usedforbuild" "$file" || true`
-    spec_usedforbuild="$spec_usedforbuild `grep "^BuildRequires:" "$file" || true`"
-    spec_norootforbuild=`grep "^# *norootforbuild" "$file" || true`
-
-    if [ -z "$spec_norootforbuild" ]; then
-	echo -e "\e[34mWARNING: spec file misses 'norootforbuild'\e[m"
-    fi
+    local i=0;
+    local line
+    while read line; do
+	[ "$line" = "/ERROR/" ] && false
+	case $i in
+	    0) # name
+		i=1
+	    ;;
+	    1) # ver
+		i=2
+	    ;;
+	    2) # subpacks
+		i=3
+	    ;;
+	    3) # buildrequires
+		neededpackages="$line"
+		i=0
+	    ;;
+	esac
+    done < <($y2pmbuilddatadir/parse_spec.pl "$@" || echo /ERROR/)
 }
 
 # $1 specfile
 getneededforbuild()
 {
-    local seen_aaa_base=0
-    for i in $spec_usedforbuild; do
-	case "$i" in
-	\#*)
-	;;
-	usedforbuild|BuildRequires:)
-	;;
-	*)
-	    neededpackages="$neededpackages $i"
-	    [ "$i" = 'aaa_base' ] && seen_aaa_base=1
-	;;
-	esac
-    done
+    local line
+    local file="$1";
+    [ ! -e "$file" ] && return 1
+
+    spec_norootforbuild=`grep "^# *norootforbuild" "$file" || true`
+
+    if [ -z "$spec_norootforbuild" ]; then
+	echo -e "\e[34mWARNING: spec file misses 'norootforbuild'\e[m"
+    fi
+
+    if ! grep -q '^BuildRequires' "$file"; then
+	spec_usedforbuild=`grep "^# *usedforbuild" "$file" || true`
+	local seen_aaa_base=0
+	for i in $spec_usedforbuild; do
+	    case "$i" in
+	    \#*)
+	    ;;
+	    usedforbuild)
+	    ;;
+	    *)
+		neededpackages="$neededpackages $i"
+		[ "$i" = 'aaa_base' ] && seen_aaa_base=1
+	    ;;
+	    esac
+	done
+    else
+	if [ -n "$BUILD_DIST" ]; then
+	    if [ ! -e "$y2pmbuildconfdir/macros/$BUILD_DIST/macros" ]; then
+		    echo "rpm macros for $BUILD_DIST not configured"
+		    exit 1
+	    fi
+	    parse_spec --dist "$BUILD_DIST" "${definesnstuff[@]}" "$file"
+	else
+	    parse_spec "${definesnstuff[@]}" "$file"
+	fi
+    fi
+
     if [ "$ccache" -eq 1 ]; then
 	neededpackages="$neededpackages ccache"
     fi
@@ -216,6 +253,7 @@ getneededforbuild()
     neededpackages="$neededpackages $extra_packs"
 
     if [ "$seen_aaa_base" != 1 ]; then
+	echo "BuildRequires: $neededpackages"
 	echo "aaa_base not in BuildRequires, adding default packages"
 	neededpackages="$defaultpackages $neededpackages"
     else
@@ -227,6 +265,9 @@ installpackages()
 {
     local logfile
     local instlog
+
+    setuptimezone
+
     logfile="$buildroot/.y2log"
     instlog="$buildroot/.y2logRPM"
     y2pmshcmds="$buildroot/.y2pmshcmds"
@@ -410,6 +451,36 @@ determinerpmversion()
     esac
 }
 
+mkdevs()
+{
+    local dir=$buildroot/dev
+    mkdir -p $dir
+    while read a b c d e; do
+	rm -f $dir/$b
+	case $a in
+	    l)
+		ln -s $c $dir/$b
+		;;
+	    *)
+		mknod -m $e $dir/$b $a $c $d
+		;;
+	esac
+    done <<-EOF
+	c null 1 3 666
+	c zero 1 5 666
+	c full 1 7 622
+	c random 1 8 666
+	c urandom 1 9 644
+	c tty 5 0 666
+	c ptmx 5 2 666
+	l fd /proc/self/fd/ fd
+	l stdin /proc/self/fd/0
+	l stdout /proc/self/fd/1
+	l stderr /proc/self/fd/2
+	EOF
+    true
+}
+
 mountfilesystems()
 {
     mkdir -p $buildroot/proc
@@ -572,8 +643,8 @@ parsecmdline()
 	    --no-copy-repo) no_copy_repo=1 ; shift ;;
 	    --help) helpandquit ;;
 	    --target|--define|--with|--without)
-		    rpmbopts[${#rpmbopts[@]}]="$1";
-		    rpmbopts[${#rpmbopts[@]}]="$2";
+		    definesnstuff[${#definesnstuff[@]}]="$1";
+		    definesnstuff[${#definesnstuff[@]}]="$2";
 		    shift 2 ;;
 	    --stage) rpmbuildstage="$2"; shift 2 ;;
 	    --signas) rpm_sign_name="$2"; shift 2 ;;
@@ -647,6 +718,7 @@ if [ -z "$specfiles" ]; then
     exit 1
 fi
 
+mkdevs
 mountfilesystems
 
 for spec in $specfiles; do
@@ -661,12 +733,9 @@ for spec in $specfiles; do
     echo -n "start $spec at " >> "$buildroot/.build.packages"
     date >> "$buildroot/.build.packages"
 
-    parse_spec $spec
-
-    getneededforbuild
+    getneededforbuild $spec
 
     if [ "$doinit" -eq 1 ]; then
-	setuptimezone
 	installpackages
 	copyextrafiles
 	runsuseconfig
@@ -697,7 +766,7 @@ for spec in $specfiles; do
     echo -----------------------------------------------------------------
 
     toshellscript $rpmbuild --nodeps \
-	-b$rpmbuildstage "${rpmbopts[@]}" \
+	-b$rpmbuildstage "${rpmbopts[@]}" "${definesnstuff[@]}" \
 	/usr/src/packages/SOURCES/$spec \
 	> $buildroot/.build.command
     chmod 755 $buildroot/.build.command

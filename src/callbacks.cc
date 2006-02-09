@@ -114,11 +114,18 @@ class DownloadCallback : public MediaCallbacks::DownloadProgressCallback
 	virtual void start( const Url & url_r, const Pathname & localpath_r )
 	{
 	}
+#ifndef SUSE100COMPAT
 	virtual bool progress( const ProgressData & prg )
 	{
 	    _dp.progress(prg);
             return true;
 	}
+#else
+	virtual void progress( const ProgressData & prg )
+	{
+	    _dp.progress(prg);
+	}
+#endif
 	virtual void stop( PMError error )
 	{
 	}

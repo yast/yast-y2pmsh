@@ -56,7 +56,6 @@
 #include "search.h"
 #include "summary.h"
 #include "distrocheck.h"
-#include "you.h"
 #include "callbacks.h"
 
 using namespace std;
@@ -1338,7 +1337,8 @@ void y2pmshquitsignalhandler(int sig)
 
 void installsignalhandlers(void)
 {
-    struct sigaction act = {0};
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
     act.sa_handler = y2pmshquitsignalhandler;
     ::sigaction(SIGINT, &act, NULL);
     ::sigaction(SIGHUP, &act, NULL);
