@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Thu Feb  9 14:35:24 CET 2006 - lnussel@suse.de
+
+- y2pmbuild: use mls' spec file parser to be able to support
+  conditional BuildRequires
+- y2pmbuild: create minimum set of devices in /dev
+- y2pmbuild: add 10.1 config (#146018)
+- add additional libs so y2pmsh can be statically linked
+- fix build on 10.0
+- 2.13.1
+
+-------------------------------------------------------------------
 Fri Oct 14 15:51:35 CEST 2005 - ma@suse.de
 
 - Adapt to new packagemanager callbacks.

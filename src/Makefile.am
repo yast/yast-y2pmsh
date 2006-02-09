@@ -1,9 +1,12 @@
 AM_CPPFLAGS=-DUSETECLA=1 -I$(tecladir) -I/usr/include/YaST2
 
-y2pmlibs = -ly2pm -ly2util
+y2pmlibs = -ly2pm -ly2util -lrpm -lcurl -lslp
 teclalibs = $(tecladir)/libtecla_r.a
 
 bin_PROGRAMS = y2pmsh
+
+pkgdata_DATA    = Needed.pm
+pkgdata_SCRIPTS = parse_spec.pl
 
 y2pmsh_SOURCES = \
 	cmdlineiface_tecla.cc cmdlineiface_tecla.h \
@@ -20,7 +23,6 @@ y2pmsh_SOURCES = \
 	summary.cc summary.h \
 	y2pmsh.cc y2pmsh.h \
 	distrocheck.cc distrocheck.h \
-	you.cc you.h \
 	tty.cc tty.h \
 	dotpainter.h \
 	variables.cc variables.h \
@@ -37,7 +39,7 @@ install-exec-local:
 	sed "s#^y2pmbuildconfdir=/etc/y2pmbuild#y2pmbuildconfdir=${y2pmbuildconfdir}#" < y2pmbuild > $(DESTDIR)$(bindir)/y2pmbuild
 	chmod 755 $(DESTDIR)$(bindir)/y2pmbuild
 
-EXTRA_DIST = y2pmbuild
+EXTRA_DIST = y2pmbuild $(pkgdata_DATA) $(pkgdata_SCRIPTS)
 
 #noinst_PROGRAMS = y2pmsh_static
 #
