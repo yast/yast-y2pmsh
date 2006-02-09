@@ -272,7 +272,7 @@ sub read_spec_complex {
     return (undef, "open: $!", undef);
   }
   my @macros = split("\n", $macros || '');
-  print STDERR map { $_." <<< \n" } @macros;
+#  print STDERR map { $_." <<< \n" } @macros;
   my $skip = 0;
   my $main_preamble = 1;
   my $inspec = 0;
