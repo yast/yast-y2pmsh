@@ -1,0 +1,240 @@
+-------------------------------------------------------------------
+Thu Feb  9 14:35:24 CET 2006 - lnussel@suse.de
+
+- y2pmbuild: use mls' spec file parser to be able to support
+  conditional BuildRequires
+- y2pmbuild: create minimum set of devices in /dev
+- y2pmbuild: add 10.1 config (#146018)
+- add additional libs so y2pmsh can be statically linked
+- fix build on 10.0
+- 2.13.1
+
+-------------------------------------------------------------------
+Fri Oct 14 15:51:35 CEST 2005 - ma@suse.de
+
+- Adapt to new packagemanager callbacks.
+- 2.13.0
+
+-------------------------------------------------------------------
+Mon Sep  5 17:31:06 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: add --baselibs and --extra-packs to stay in sync with
+  'build' (#115318)
+- 2.12.4
+
+-------------------------------------------------------------------
+Wed Aug 31 11:51:37 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: copy extra files before running SuSEconfig (#114362)
+
+-------------------------------------------------------------------
+Fri Aug 12 11:05:59 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: also generate YUM source in repository
+- y2pmbuild: don't add default set of package if aaa_base is already
+  in build requires. Prevents sendmail/postfix conflict when
+  building new spec on old distro.
+- remove package with install command if package name is prefixed
+  with a dash
+- 2.12.2
+
+-------------------------------------------------------------------
+Mon Aug  8 13:15:19 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: fix uninitialized variable (#102520)
+- y2pmbuild: add config files for 10.0 and 8.1 (need to stop nscd
+  before building for 8.1)
+- add support for autorefresh sources
+- 2.12.1
+
+-------------------------------------------------------------------
+Wed Jul 20 13:09:56 CEST 2005 - lnussel@suse.de
+
+- add libxml2 to neededforbuild
+- fix compiler warnings
+- y2pmbuild: add support for signing packages
+- y2pmbuild: pass through --with, --without and --define options
+- y2pmbuild: fix building multiple spec files in a row
+- y2pmbuild: rename copy_files -> extra_copy, use rsync
+- 2.12.0
+
+-------------------------------------------------------------------
+Fri Jul  1 11:46:59 CEST 2005 - lnussel@suse.de
+
+- y2pmbuild: use common config file for all distros
+- y2pmbuild: copy additional files like rpm macros to buildroot
+- new variable build::strictrequires used by y2pmbuild --strictrequires
+- 2.11.8
+
+-------------------------------------------------------------------
+Wed Mar 30 13:55:23 CEST 2005 - lnussel@suse.de
+
+- don't use cacheToRamdisk(false) (#74618)
+- 2.11.7
+
+-------------------------------------------------------------------
+Mon Mar  7 12:13:58 CET 2005 - lnussel@suse.de
+
+- add y2pmbuild config file for 9.3 (#71026)
+- don't mount proc ro as it either doesn't help or harms (#71081)
+- run distrocheck after startup to show broken packages
+- also show number of unchanged packages in summary
+- 2.11.6
+
+-------------------------------------------------------------------
+Tue Dec 14 13:07:50 CET 2004 - lnussel@suse.de
+
+- use /proc/meminfo for calculating the memory limit
+- make tab completion for packages somewhat context sensitive
+- 2.11.5
+
+-------------------------------------------------------------------
+Mon Dec 13 10:15:51 CET 2004 - lnussel@suse.de
+
+- install ccache wrapper only for installed compilers
+- set memory ulimit in y2pmbuild
+- 2.11.4
+
+-------------------------------------------------------------------
+Thu Nov  4 14:29:08 CET 2004 - lnussel@suse.de
+
+- fix usage of icecream in combination with ccache in y2pmbuild
+- add --target and --stage options to y2pmbuild
+- 2.11.3
+
+-------------------------------------------------------------------
+Thu Oct 14 17:38:41 CEST 2004 - lnussel@suse.de
+
+- add icecream support to y2pmbuild
+- add --help parameter to y2pmbuild
+- 2.11.2
+
+-------------------------------------------------------------------
+Wed Oct 13 16:27:47 CEST 2004 - lnussel@suse.de
+
+- add sourceorder command for setting the installation order for
+  instalation sources
+- 2.11.1
+
+-------------------------------------------------------------------
+Tue Oct 12 17:15:21 CEST 2004 - lnussel@suse.de
+
+- use absolute path to useradd (#46580)
+- do not overwrite $defaultpackages (#46580)
+
+-------------------------------------------------------------------
+Wed Sep 29 11:52:25 CEST 2004 - lnussel@suse.de
+
+- add --no-copy-repo parameter to y2pmbuild
+- add some options to 'state' function for finer grained filtering
+- add new function 'why' which shows the solve results for specified
+  packages
+- fix saving of source rank when updating installation sources
+- fix y2pmbuild using build-root. instead of build-root.root (#45977)
+- 2.10.1
+
+-------------------------------------------------------------------
+Fri Sep 10 17:04:36 CEST 2004 - lnussel@suse.de
+
+- move class for painting progress dots in separate file
+- fix prompt in non-interactive mode
+- add options to only show dependencies to 'show' function
+- add "top ten" feature to 'depstats'
+- add 9.2 as distribution for y2pmbuild
+- 2.10.0
+
+-------------------------------------------------------------------
+Fri May 28 12:31:40 CEST 2004 - lnussel@suse.de
+
+- implemented view/install/remove products
+- fix instlog
+- show appl and auto state differently
+- change some progress callbacks
+
+-------------------------------------------------------------------
+Thu May  6 15:10:45 CEST 2004 - lnussel@suse.de
+
+- set instlog to /var/log/YaST2/y2logRPM by default
+- add tab expansion and wildcards for selection commands
+- allow to install specific candiates by specifying the full version
+- fix remove percentage counter
+- fix state -c
+- show total percentage of packages installed/removed
+
+-------------------------------------------------------------------
+Thu Apr 15 15:43:24 CEST 2004 - lnussel@suse.de
+
+- run init immediately unless --no-init is specified on command line
+- add wildcard matching using fnmatch (e.g. "install k*devel")
+- install function only installs newer packages by default, -f
+  parameter can be used to force downgrades
+- allow set and reset of taboo state
+- add quit and exit functions for mmj
+- build dependency graph in distrocheck for future use
+- properly switch root directory even if target was already initialized
+- 2.9.4
+
+-------------------------------------------------------------------
+Mon Apr  5 12:05:37 CEST 2004 - lnussel@suse.de
+
+- support nodigest and nosignature flags
+- add 'distrocheck' command to find unsatisfied dependencies among all
+  candidates
+- 2.9.3
+
+-------------------------------------------------------------------
+Mon Mar 29 11:46:02 CEST 2004 - lnussel@suse.de
+
+- fix some typos, warnings, uninitialized variables
+- fix usedforbuild in y2pmbuild
+- add 9.1 link for y2pmbuild
+- print correct number of dots also when removing packages
+- 2.9.2
+
+-------------------------------------------------------------------
+Thu Mar 25 17:08:13 CET 2004 - lnussel@suse.de
+
+- new commands whatconflictswith, allconflicts, depstats, isc
+- y2pmbuild: support Buildrequires, use rpmbuild --nodeps, install architecture
+  independend config files per default
+- fit progress dots into terminal width
+- display download progress
+- 2.9.1
+
+-------------------------------------------------------------------
+Fri Mar  5 12:45:23 CET 2004 - lnussel@suse.de
+
+- refuse build root not owned by root
+- use yast2 devtools for package generation
+- fix build with new packagemanger includes
+
+-------------------------------------------------------------------
+Tue Mar  2 18:09:19 CET 2004 - lnussel@suse.de
+
+- tab completion for package names
+- fall back to shellmode if a command specified on the command line failed
+- don't regenerate repository at start of build in y2pmbuild
+- add whatprovides function
+
+-------------------------------------------------------------------
+Sat Feb 28 17:19:14 CET 2004 - ro@suse.de
+
+- added openslp to neededforbuild
+
+-------------------------------------------------------------------
+Sat Feb 14 18:49:42 CET 2004 - lnussel@suse.de
+
+- rename showproducts -> products
+- fix whatdependson function to honor self-provides
+- add depends function
+
+-------------------------------------------------------------------
+Fri Jan 30 14:39:31 CET 2004 - lnussel@suse.de
+
+- set YAST_IS_RUNNING properly
+
+-------------------------------------------------------------------
+Thu Jan 29 23:55:22 CET 2004 - lnussel@suse.de
+
+- initial package
+
