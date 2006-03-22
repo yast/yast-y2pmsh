@@ -43,6 +43,10 @@ make %{?jobs:-j%jobs}
 mkdir -p %{buildroot}%{_docdir}/%{name}/patches-9.0
 install -m 644 patches-9.0/*.diff %{buildroot}%{_docdir}/%{name}/patches-9.0
 %endif
+%if %suse_version < 1001
+# provided by yast2-packagemanager
+rm %{buildroot}%{_bindir}/genIS_PLAINcache
+%endif
 
 
 @CLEAN@

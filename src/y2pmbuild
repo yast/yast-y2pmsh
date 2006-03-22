@@ -661,6 +661,10 @@ parsecmdline()
 	rpmbopts[${#rpmbopts[@]}]="jobs $bjobs"
     fi
 
+    if [ "$strictrequires" -ne 1 ]; then
+	rpmbopts[${#rpmbopts[@]}]='--nodeps'
+    fi
+
     specfiles="$*"
 }
 
@@ -737,6 +741,10 @@ for spec in $specfiles; do
 
     if [ "$doinit" -eq 1 ]; then
 	installpackages
+	if [ ! -e $buildroot/dev/null ]; then
+	    # missing nodes if devs got uninstalled
+	    mkdevs
+	fi
 	copyextrafiles
 	runsuseconfig
 	runldconfig
@@ -765,7 +773,7 @@ for spec in $specfiles; do
     echo -----------------------------------------------------------------
     echo -----------------------------------------------------------------
 
-    toshellscript $rpmbuild --nodeps \
+    toshellscript $rpmbuild \
 	-b$rpmbuildstage "${rpmbopts[@]}" "${definesnstuff[@]}" \
 	/usr/src/packages/SOURCES/$spec \
 	> $buildroot/.build.command

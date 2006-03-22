@@ -1,4 +1,14 @@
 -------------------------------------------------------------------
+Wed Mar 22 10:13:17 CET 2006 - lnussel@suse.de
+
+- include genIS_PLAINcache to be able to generate repositories for
+  older distros (#159725)
+- don't pass --nodeps to rpmbuild if --strictrequires is requested
+  (#159579)
+- recreate /dev in case devs got uninstalled
+- 2.13.2
+
+-------------------------------------------------------------------
 Thu Feb  9 14:35:24 CET 2006 - lnussel@suse.de
 
 - y2pmbuild: use mls' spec file parser to be able to support
