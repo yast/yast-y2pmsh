@@ -3,7 +3,7 @@ AM_CPPFLAGS=-DUSETECLA=1 -I$(tecladir) -I/usr/include/YaST2
 y2pmlibs = -ly2pm -ly2util -lrpm -lcurl -lslp
 teclalibs = $(tecladir)/libtecla_r.a
 
-bin_PROGRAMS = y2pmsh
+bin_PROGRAMS = y2pmsh genIS_PLAINcache
 
 pkgdata_DATA    = Needed.pm
 pkgdata_SCRIPTS = parse_spec.pl
@@ -29,6 +29,11 @@ y2pmsh_SOURCES = \
 	callbacks.cc callbacks.h
 
 y2pmsh_LDADD=$(teclalibs) $(y2pmlibs)
+
+genIS_PLAINcache_SOURCES = \
+	genIS_PLAINcache.cc
+
+genIS_PLAINcache_LDADD = $(y2pmlibs)
 
 y2pmbuildconfdir = $(sysconfdir)/y2pmbuild
 	
