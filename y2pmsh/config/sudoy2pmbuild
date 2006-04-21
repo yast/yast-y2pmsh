@@ -1,0 +1,30 @@
+#!/bin/bash
+
+y2pmbuildconfdir=/etc/y2pmbuild
+
+if [ "`id -u`" != 0 ]; then
+        exec sudo -H "$0" "$@"
+        exit 1
+fi
+
+if [ -z "$BUILD_DIST" ]; then
+        ver=""
+        arch=`uname -m`
+
+        case "$arch" in
+                i?86) arch=i386;;
+        esac
+
+        case "$0" in
+                *build-*) ver=${0#*build-};;
+        esac
+
+        if [ -e "$y2pmbuildconfdir/dists/$ver-$arch" ]; then
+		export BUILD_DIST="$ver-$arch"
+	elif [ -n "$ver" -a -e "$y2pmbuildconfdir/dists/$ver" ]; then
+		export BUILD_DIST="$ver"
+	fi
+		
+fi
+
+exec y2pmbuild "$@"

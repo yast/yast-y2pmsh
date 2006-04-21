@@ -1,0 +1,66 @@
+@HEADER-COMMENT@
+
+# norootforbuild
+
+@HEADER@
+BuildRequires:	gcc-c++ yast2-packagemanager-devel rpm-devel curl-devel openslp-devel
+Summary:      Shell interface for the YaST2 packagemanager
+Source1:      libtecla-1.5.0.tar.gz
+Requires:     rsync
+
+%description
+-
+
+%prep
+%setup -a 1
+
+%build
+CFLAGS="%{optflags}"
+CXXFLAGS="%{optflags}"
+%if %suse_version < 901
+CXXFLAGS="$CXXFLAGS -DSUSE90COMPAT"
+%endif
+%if %suse_version < 931
+CXXFLAGS="$CXXFLAGS -DSUSE93COMPAT"
+%endif
+%if %suse_version < 1001
+CXXFLAGS="$CXXFLAGS -DSUSE100COMPAT"
+%endif
+cd libtecla
+%{suse_update_config -f}
+cd ..
+export CFLAGS CXXFLAGS
+./configure \
+	--prefix=%{_prefix} \
+	--infodir=%{_infodir} \
+	--mandir=%{_mandir} \
+	--sysconfdir=%{_sysconfdir}
+make -C libtecla
+make %{?jobs:-j%jobs}
+
+@INSTALL@
+%if %suse_version < 901
+mkdir -p %{buildroot}%{_docdir}/%{name}/patches-9.0
+install -m 644 patches-9.0/*.diff %{buildroot}%{_docdir}/%{name}/patches-9.0
+%endif
+%if %suse_version < 1001
+# provided by yast2-packagemanager
+rm %{buildroot}%{_bindir}/genIS_PLAINcache
+%endif
+
+
+@CLEAN@
+
+%files
+%defattr(-,root,root)
+%doc @docdir@
+%{_bindir}/*
+%dir %{_sysconfdir}/y2pmbuild
+%dir %{_sysconfdir}/y2pmbuild/dists
+%dir %{_sysconfdir}/y2pmbuild/files
+%dir %{_sysconfdir}/y2pmbuild/macros
+%config(noreplace) %{_sysconfdir}/y2pmbuild/dists/*
+%config(noreplace) %{_sysconfdir}/y2pmbuild/files/*
+%config(noreplace) %{_sysconfdir}/y2pmbuild/macros/*
+%config(noreplace) %{_sysconfdir}/y2pmbuild/dists_common
+%{_datadir}/y2pmsh

@@ -1,0 +1,38 @@
+# where to store built rpms
+repository="/var/spool/y2pmbuild/$BUILD_DIST"
+
+# type of installation source to generate in repository
+# either plain or yum or both
+regen_repository="plain yum"
+
+# additional sources, specify with url_...
+add_sources="suse"
+
+# suse here is the one from $add_sources
+url_suse="file:/srv/ftp/pub/suse/$BUILD_DIST/CD1/"
+
+# add this url as top priority source (needs patches on 9.0)
+url_repository="file:$repository"
+
+# extra directories that will be copied to the buildroot after
+# packages have been installed. $y2pmbuildconfdir/files/$BUILD_DIST/
+# is always copied. Note that rsync is used so you may want to
+# think about when to append slashes to directory names.
+extra_copy=""
+
+# basename for build root directories. The final name will be
+# $buildrootbase.$USER.$BUILD_DIST
+#buildrootbase="/var/tmp/build-root"
+
+# gpg signature to use for signing. Leave empty to not sign packages
+#rpm_sign_name=
+
+# key file to use for signing. Only used when rpm_sign_name is
+# defined. Default $y2pmbuildconfdir/signkey.asc
+#
+# Create with
+# gpg -a --export > FILE
+# gpg -a --export-secret-key >> FILE
+#rpm_sign_key=
+
+# vim:syntax=sh
