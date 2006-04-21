@@ -1,7 +1,7 @@
 -------------------------------------------------------------------
 Fri Apr 21 10:57:21 CEST 2006 - lnussel@suse.de
 
-- y2pmbuild: fix wrong arch in macro files on biarch archs
+- y2pmbuild: fix wrong arch in macro files on biarch archs (#168236)
 - 2.13.3
 
 -------------------------------------------------------------------
