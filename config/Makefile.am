@@ -35,7 +35,7 @@ install-exec-local:
 			install -m 644 macros $(DESTDIR)$(y2pmbuildconfmacrosdir)/$$dist-$$arch/macros; \
 			ver=$$(($${dist//./}*10));\
 			echo "%suse_version $$ver" >> $(DESTDIR)$(y2pmbuildconfmacrosdir)/$$dist-$$arch/macros;\
-			cpu=`uname -m`; \
+			cpu=$$arch; \
 			case $$cpu in \
 				i?86) cpu=i586 ;; \
 				axp) cpu=alpha ;; \

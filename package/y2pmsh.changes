@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Apr 21 10:57:21 CEST 2006 - lnussel@suse.de
+
+- y2pmbuild: fix wrong arch in macro files on biarch archs
+- 2.13.3
+
+-------------------------------------------------------------------
 Wed Mar 22 10:13:17 CET 2006 - lnussel@suse.de
 
 - include genIS_PLAINcache to be able to generate repositories for
